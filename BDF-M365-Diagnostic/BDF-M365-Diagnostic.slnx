@@ -1,8 +1,0 @@
-<Solution>
-  <Project Path="BDF.M365.Diagnostic.Core/BDF.M365.Diagnostic.Core.csproj" />
-  <Project Path="BDF.M365.Diagnostic.Entra/BDF.M365.Diagnostic.Entra.csproj" />
-  <Project Path="BDF.M365.Diagnostic.GitHub/BDF.M365.Diagnostic.GitHub.csproj" />
-  <Project Path="BDF.M365.Diagnostic.Office/BDF.M365.Diagnostic.Office.csproj" />
-  <Project Path="BDF.M365.Diagnostic.Reporting/BDF.M365.Diagnostic.Reporting.csproj" />
-  <Project Path="BDF.M365.Diagnostic.UI/BDF.M365.Diagnostic.UI.csproj" />
-</Solution>
