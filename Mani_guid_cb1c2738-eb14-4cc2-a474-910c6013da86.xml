@@ -5,7 +5,7 @@
            xsi:type="MailApp">
 
   <Id>cb1c2738-eb14-4cc2-a474-910c6013da86</Id>
-  <Version>2.0.1.0</Version>
+  <Version>2.0.1.1</Version>
   <ProviderName>MesArchives_SPOT</ProviderName>
   <DefaultLocale>fr-FR</DefaultLocale>
 
