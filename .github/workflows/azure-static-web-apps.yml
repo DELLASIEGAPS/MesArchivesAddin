@@ -29,6 +29,7 @@ jobs:
           api_location: "" # Pas d'API
           output_location: "src" # Ton dossier avec taskpane.html et commands.html
           skip_app_build: true # Pas de npm build, fichiers déjà prêts
+          skip_deploy_on_missing_secrets: true
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
