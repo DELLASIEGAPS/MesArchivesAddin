@@ -1,9 +1,0 @@
-
-<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'>
-  <g fill='currentColor'>
-    <ellipse cx='24' cy='10' rx='14' ry='5'/>
-    <path d='M10 10v18c0 3 28 3 28 0V10' />
-    <ellipse cx='24' cy='28' rx='14' ry='5'/>
-    <path d='M32 32l4 4 6-8' stroke='currentColor' stroke-width='3' fill='none'/>
-  </g>
-</svg>
