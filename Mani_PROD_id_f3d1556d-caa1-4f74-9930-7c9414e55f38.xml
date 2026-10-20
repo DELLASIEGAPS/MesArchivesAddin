@@ -4,20 +4,20 @@
            xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
            xsi:type="MailApp">
 
-  <Id>f3d1556d-caa1-4f74-9930-7c9414e55f38</Id>
-  <Version>1.0.1.0</Version>
-  <ProviderName>ArchivesAddin_BDF</ProviderName>
+  <Id>cb1c2738-eb14-4cc2-a474-910c6013da86</Id>
+  <Version>2.0.1.0</Version>
+  <ProviderName>MesArchives_SPOT</ProviderName>
   <DefaultLocale>fr-FR</DefaultLocale>
 
   <DisplayName DefaultValue="MesArchives"/>
-  <Description DefaultValue="Restauration des archives PST"/>
+  <Description DefaultValue="Restauration des archives"/>
 
-  <IconUrl DefaultValue="https://dellasiegaexternal2.github.io/MesArchivesAddin/assets/icon-64.png"/>
-  <HighResolutionIconUrl DefaultValue="https://dellasiegaexternal2.github.io/MesArchivesAddin/assets/icon-128.png"/>
-  <SupportUrl DefaultValue="https://dellasiegaexternal2.github.io/MesArchivesAddin/"/>
+  <IconUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/assets/icon-64.svg"/>
+  <HighResolutionIconUrl DefaultValue=https://dellasiegaps.github.io/MesArchivesAddin/assets/icon-128.svg"/>
+  <SupportUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/"/>
 
   <AppDomains>
-    <AppDomain>https://dellasiegaexternal2.github.io</AppDomain>
+    <AppDomain>https://dellasiegaps.github.io</AppDomain>
   </AppDomains>
 
   <Hosts>
@@ -33,7 +33,7 @@
   <FormSettings>
     <Form xsi:type="ItemRead">
       <DesktopSettings>
-        <SourceLocation DefaultValue="https://dellasiegaexternal2.github.io/MesArchivesAddin/src/taskpane/taskpane.html"/>
+        <SourceLocation DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/taskpane/taskpane.html"/>
         <RequestedHeight>250</RequestedHeight>
       </DesktopSettings>
     </Form>
@@ -41,7 +41,7 @@
 
   <Permissions>ReadWriteMailbox</Permissions>
 
-  <!-- ✅ IMPORTANT -->
+  <!-- IMPORTANT -->
   <Rule xsi:type="RuleCollection" Mode="Or">
     <Rule xsi:type="ItemIs" ItemType="Message" FormType="Read"/>
   </Rule>
@@ -162,23 +162,23 @@
     <Resources>
 
       <bt:Images>
-        <bt:Image id="Icon.16x16" DefaultValue="https://dellasiegaexternal2.github.io/MesArchivesAddin/assets/icon-16.png"/>
-        <bt:Image id="Icon.32x32" DefaultValue="https://dellasiegaexternal2.github.io/MesArchivesAddin/assets/icon-32.png"/>
-        <bt:Image id="Icon.80x80" DefaultValue="https://dellasiegaexternal2.github.io/MesArchivesAddin/assets/icon-80.png"/>
+        <bt:Image id="Icon.16x16" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/assets/icon-16.svg"/>
+        <bt:Image id="Icon.32x32" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/assets/icon-32.svg"/>
+        <bt:Image id="Icon.80x80" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/assets/icon-80.svg"/>
       </bt:Images>
 
       <bt:Urls>
-        <bt:Url id="Commands.Url" DefaultValue="https://dellasiegaexternal2.github.io/MesArchivesAddin/src/commands/commands.html"/>
-        <bt:Url id="Taskpane.Url" DefaultValue="https://dellasiegaexternal2.github.io/MesArchivesAddin/src/taskpane/taskpane.html"/>
+        <bt:Url id="Commands.Url" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/commands/commands.html"/>
+        <bt:Url id="Taskpane.Url" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/taskpane/taskpane.html"/>
       </bt:Urls>
 
       <bt:ShortStrings>
-        <bt:String id="GroupLabel" DefaultValue="Mes Archives BdF"/>
+        <bt:String id="GroupLabel" DefaultValue="Mes Archives Banque de France"/>
         <bt:String id="archive2021Label" DefaultValue="Archives 2021"/>
         <bt:String id="archive2022Label" DefaultValue="Archives 2022"/>
         <bt:String id="archive2023Label" DefaultValue="Archives 2023"/>
         <bt:String id="archive2024Label" DefaultValue="Archives 2024"/>
-        <bt:String id="aboutLabel" DefaultValue="À propos"/>
+        <bt:String id="aboutLabel" DefaultValue="À propos de SPOT LE 20.10.2026"/>
       </bt:ShortStrings>
 
       <bt:LongStrings>
@@ -186,7 +186,7 @@
         <bt:String id="archive2022Desc" DefaultValue="Ouvrir les archives 2022"/>
         <bt:String id="archive2023Desc" DefaultValue="Ouvrir les archives 2023"/>
         <bt:String id="archive2024Desc" DefaultValue="Ouvrir les archives 2024"/>
-        <bt:String id="aboutDesc" DefaultValue="Informations sur l'application"/>
+        <bt:String id="aboutDesc" DefaultValue="Informations"/>
       </bt:LongStrings>
 
     </Resources>
