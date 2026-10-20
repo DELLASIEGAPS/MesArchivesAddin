@@ -1,6 +1,0 @@
-@MesArchivesAgent_HostAddress = http://localhost:5073
-
-GET {{MesArchivesAgent_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
