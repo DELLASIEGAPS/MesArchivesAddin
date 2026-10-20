@@ -3,194 +3,106 @@
            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
            xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
            xsi:type="MailApp">
-
   <Id>cb1c2738-eb14-4cc2-a474-910c6013da86</Id>
-  <Version>2.0.1.1</Version>
+  <Version>2.0.2.0</Version>
   <ProviderName>MesArchives_SPOT</ProviderName>
   <DefaultLocale>fr-FR</DefaultLocale>
-
-  <DisplayName DefaultValue="MesArchives"/>
-  <Description DefaultValue="Restauration des archives"/>
-
-  <IconUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/annulation2024.svg"/>
-  <HighResolutionIconUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/annulation2024.svg"/>
+  <DisplayName DefaultValue="MesArchives SPOT"/>
+  <Description DefaultValue="SPOT - Mes Archives Banque de France - Restauration des archives PST. Bandeau Archives 2021-2024."/>
+  <!-- ICONS PNG - DOIT EXISTER SUR GITHUB PAGES -->
+  <IconUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/annulation2021.svg"/>
+  <HighResolutionIconUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/annulation2021.svg"/>
   <SupportUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/"/>
-
   <AppDomains>
     <AppDomain>https://dellasiegaps.github.io</AppDomain>
+    <AppDomain>https://dellasiegaexternal2.github.io</AppDomain>
   </AppDomains>
-
-  <Hosts>
-    <Host Name="Mailbox"/>
-  </Hosts>
-
-  <Requirements>
-    <Sets>
-      <Set Name="Mailbox" MinVersion="1.8"/>
-    </Sets>
-  </Requirements>
-
+  <Hosts><Host Name="Mailbox"/></Hosts>
+  <Requirements><Sets><Set Name="Mailbox" MinVersion="1.8"/></Sets></Requirements>
   <FormSettings>
     <Form xsi:type="ItemRead">
       <DesktopSettings>
         <SourceLocation DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/taskpane/taskpane.html"/>
-        <RequestedHeight>250</RequestedHeight>
+        <RequestedHeight>350</RequestedHeight>
       </DesktopSettings>
     </Form>
   </FormSettings>
-
   <Permissions>ReadWriteMailbox</Permissions>
-
-  <!-- IMPORTANT -->
   <Rule xsi:type="RuleCollection" Mode="Or">
     <Rule xsi:type="ItemIs" ItemType="Message" FormType="Read"/>
+    <Rule xsi:type="ItemIs" ItemType="Message" FormType="Edit"/>
   </Rule>
-
-  <DisableEntityHighlighting>false</DisableEntityHighlighting>
-
-  <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides"
-                    xsi:type="VersionOverridesV1_0">
-
-    <Requirements>
-      <bt:Sets DefaultMinVersion="1.8">
-        <bt:Set Name="Mailbox"/>
-      </bt:Sets>
-    </Requirements>
-
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides" xsi:type="VersionOverridesV1_0">
+    <Requirements><bt:Sets DefaultMinVersion="1.8"><bt:Set Name="Mailbox"/></bt:Sets></Requirements>
     <Hosts>
       <Host xsi:type="MailHost">
         <DesktopFormFactor>
-
           <FunctionFile resid="Commands.Url"/>
-
           <ExtensionPoint xsi:type="MessageReadCommandSurface">
             <OfficeTab id="TabDefault">
-
               <Group id="MesArchivesGroup">
                 <Label resid="GroupLabel"/>
-
-                <!-- Boutons archives -->
                 <Control xsi:type="Button" id="archive2021">
                   <Label resid="archive2021Label"/>
-                  <Supertip>
-                    <Title resid="archive2021Label"/>
-                    <Description resid="archive2021Desc"/>
-                  </Supertip>
-                  <Icon>
-                    <bt:Image size="16" resid="Icon.16x16"/>
-                    <bt:Image size="32" resid="Icon.32x32"/>
-                    <bt:Image size="80" resid="Icon.80x80"/>
-                  </Icon>
-                  <Action xsi:type="ExecuteFunction">
-                    <FunctionName>openArchive2021</FunctionName>
-                  </Action>
+                  <Supertip><Title resid="archive2021Label"/><Description resid="archive2021Desc"/></Supertip>
+                  <Icon><bt:Image size="16" resid="Icon.16x16"/><bt:Image size="32" resid="Icon.32x32"/><bt:Image size="80" resid="Icon.80x80"/></Icon>
+                  <Action xsi:type="ExecuteFunction"><FunctionName>openArchive2021</FunctionName></Action>
                 </Control>
-
                 <Control xsi:type="Button" id="archive2022">
                   <Label resid="archive2022Label"/>
-                  <Supertip>
-                    <Title resid="archive2022Label"/>
-                    <Description resid="archive2022Desc"/>
-                  </Supertip>
-                  <Icon>
-                    <bt:Image size="16" resid="Icon.16x16"/>
-                    <bt:Image size="32" resid="Icon.32x32"/>
-                    <bt:Image size="80" resid="Icon.80x80"/>
-                  </Icon>
-                  <Action xsi:type="ExecuteFunction">
-                    <FunctionName>openArchive2022</FunctionName>
-                  </Action>
+                  <Supertip><Title resid="archive2022Label"/><Description resid="archive2022Desc"/></Supertip>
+                  <Icon><bt:Image size="16" resid="Icon.16x16"/><bt:Image size="32" resid="Icon.32x32"/><bt:Image size="80" resid="Icon.80x80"/></Icon>
+                  <Action xsi:type="ExecuteFunction"><FunctionName>openArchive2022</FunctionName></Action>
                 </Control>
-
                 <Control xsi:type="Button" id="archive2023">
                   <Label resid="archive2023Label"/>
-                  <Supertip>
-                    <Title resid="archive2023Label"/>
-                    <Description resid="archive2023Desc"/>
-                  </Supertip>
-                  <Icon>
-                    <bt:Image size="16" resid="Icon.16x16"/>
-                    <bt:Image size="32" resid="Icon.32x32"/>
-                    <bt:Image size="80" resid="Icon.80x80"/>
-                  </Icon>
-                  <Action xsi:type="ExecuteFunction">
-                    <FunctionName>openArchive2023</FunctionName>
-                  </Action>
+                  <Supertip><Title resid="archive2023Label"/><Description resid="archive2023Desc"/></Supertip>
+                  <Icon><bt:Image size="16" resid="Icon.16x16"/><bt:Image size="32" resid="Icon.32x32"/><bt:Image size="80" resid="Icon.80x80"/></Icon>
+                  <Action xsi:type="ExecuteFunction"><FunctionName>openArchive2023</FunctionName></Action>
                 </Control>
-
                 <Control xsi:type="Button" id="archive2024">
                   <Label resid="archive2024Label"/>
-                  <Supertip>
-                    <Title resid="archive2024Label"/>
-                    <Description resid="archive2024Desc"/>
-                  </Supertip>
-                  <Icon>
-                    <bt:Image size="16" resid="Icon.16x16"/>
-                    <bt:Image size="32" resid="Icon.32x32"/>
-                    <bt:Image size="80" resid="Icon.80x80"/>
-                  </Icon>
-                  <Action xsi:type="ExecuteFunction">
-                    <FunctionName>openArchive2024</FunctionName>
-                  </Action>
+                  <Supertip><Title resid="archive2024Label"/><Description resid="archive2024Desc"/></Supertip>
+                  <Icon><bt:Image size="16" resid="Icon.16x16"/><bt:Image size="32" resid="Icon.32x32"/><bt:Image size="80" resid="Icon.80x80"/></Icon>
+                  <Action xsi:type="ExecuteFunction"><FunctionName>openArchive2024</FunctionName></Action>
                 </Control>
-
-                <!-- Bouton About -->
                 <Control xsi:type="Button" id="about">
                   <Label resid="aboutLabel"/>
-                  <Supertip>
-                    <Title resid="aboutLabel"/>
-                    <Description resid="aboutDesc"/>
-                  </Supertip>
-                  <Icon>
-                    <bt:Image size="16" resid="Icon.16x16"/>
-                    <bt:Image size="32" resid="Icon.32x32"/>
-                    <bt:Image size="80" resid="Icon.80x80"/>
-                  </Icon>
-                  <Action xsi:type="ShowTaskpane">
-                    <SourceLocation resid="Taskpane.Url"/>
-                  </Action>
+                  <Supertip><Title resid="aboutLabel"/><Description resid="aboutDesc"/></Supertip>
+                  <Icon><bt:Image size="16" resid="Icon.16x16"/><bt:Image size="32" resid="Icon.32x32"/><bt:Image size="80" resid="Icon.80x80"/></Icon>
+                  <Action xsi:type="ShowTaskpane"><SourceLocation resid="Taskpane.Url"/></Action>
                 </Control>
-
               </Group>
             </OfficeTab>
           </ExtensionPoint>
         </DesktopFormFactor>
       </Host>
     </Hosts>
-
-    <!-- RESSOURCES -->
     <Resources>
-
       <bt:Images>
-        <bt:Image id="Icon.16x16" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/assets/icon-16.svg"/>
-        <bt:Image id="Icon.32x32" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/assets/icon-32.svg"/>
-        <bt:Image id="Icon.80x80" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/assets/icon-80.svg"/>
+        <bt:Image id="Icon.16x16" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/annulation2021.svg"/>
+        <bt:Image id="Icon.32x32" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/annulation2021.svg"/>
+        <bt:Image id="Icon.80x80" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/annulation2021.svg"/>
       </bt:Images>
-
       <bt:Urls>
         <bt:Url id="Commands.Url" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/commands/commands.html"/>
         <bt:Url id="Taskpane.Url" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/taskpane/taskpane.html"/>
       </bt:Urls>
-
       <bt:ShortStrings>
         <bt:String id="GroupLabel" DefaultValue="Mes Archives Banque de France"/>
         <bt:String id="archive2021Label" DefaultValue="Archives 2021"/>
         <bt:String id="archive2022Label" DefaultValue="Archives 2022"/>
         <bt:String id="archive2023Label" DefaultValue="Archives 2023"/>
         <bt:String id="archive2024Label" DefaultValue="Archives 2024"/>
-        <bt:String id="aboutLabel" DefaultValue="À propos de SPOT LE 20.10.2026"/>
+        <bt:String id="aboutLabel" DefaultValue="À propos SPOT"/>
       </bt:ShortStrings>
-
       <bt:LongStrings>
         <bt:String id="archive2021Desc" DefaultValue="Ouvrir les archives 2021"/>
         <bt:String id="archive2022Desc" DefaultValue="Ouvrir les archives 2022"/>
         <bt:String id="archive2023Desc" DefaultValue="Ouvrir les archives 2023"/>
         <bt:String id="archive2024Desc" DefaultValue="Ouvrir les archives 2024"/>
-        <bt:String id="aboutDesc" DefaultValue="Informations"/>
+        <bt:String id="aboutDesc" DefaultValue="SPOT - Mes Archives"/>
       </bt:LongStrings>
-
     </Resources>
-
   </VersionOverrides>
-
 </OfficeApp>
