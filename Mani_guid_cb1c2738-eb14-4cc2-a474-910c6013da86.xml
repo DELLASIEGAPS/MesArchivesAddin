@@ -12,8 +12,8 @@
   <DisplayName DefaultValue="MesArchives"/>
   <Description DefaultValue="Restauration des archives"/>
 
-  <IconUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/assets/icon-64.svg"/>
-  <HighResolutionIconUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/assets/img/annulation2024.svg"/>
+  <IconUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/annulation2024.svg"/>
+  <HighResolutionIconUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/annulation2024.svg"/>
   <SupportUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/"/>
 
   <AppDomains>
