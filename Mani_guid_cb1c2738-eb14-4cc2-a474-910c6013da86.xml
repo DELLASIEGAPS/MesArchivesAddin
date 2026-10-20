@@ -13,7 +13,7 @@
   <Description DefaultValue="Restauration des archives"/>
 
   <IconUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/assets/icon-64.svg"/>
-  <HighResolutionIconUrl DefaultValue=https://dellasiegaps.github.io/MesArchivesAddin/assets/icon-128.svg"/>
+  <HighResolutionIconUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/assets/img/annulation2024.svg"/>
   <SupportUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/"/>
 
   <AppDomains>
