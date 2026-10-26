@@ -10,8 +10,8 @@
   <DisplayName DefaultValue="MesArchives SPOT"/>
   <Description DefaultValue="Mes Archives Banque de France"/>
   <!-- ICONS PNG - DOIT EXISTER SUR GITHUB PAGES -->
-  <IconUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/annulation2021.svg"/>
-  <HighResolutionIconUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/annulation2021.svg"/>
+  <IconUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/gen_2024_red_transparent.png"/>
+  <HighResolutionIconUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/gen_2024_red_transparent.png"/>
   <SupportUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/Autres/support.html"/>
   <AppDomains>
     <AppDomain>https://dellasiegaps.github.io</AppDomain>
@@ -80,9 +80,9 @@
     </Hosts>
     <Resources>
       <bt:Images>
-        <bt:Image id="Icon.16x16" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/annulation2021.svg"/>
-        <bt:Image id="Icon.32x32" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/annulation2021.svg"/>
-        <bt:Image id="Icon.80x80" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/annulation2021.svg"/>
+        <bt:Image id="Icon.16x16" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/gen_2024_red_transparent.png"/>
+        <bt:Image id="Icon.32x32" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/gen_2024_red_transparent.png"/>
+        <bt:Image id="Icon.80x80" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/gen_2024_red_transparent.png"/>
       </bt:Images>
       <bt:Urls>
         <bt:Url id="Commands.Url" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/commands/commands.html"/>
