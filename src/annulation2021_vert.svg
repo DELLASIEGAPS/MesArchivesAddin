@@ -16,8 +16,5 @@
 
   <circle cx="107" cy="42" r="5" fill="#04d952"/>
 
-  <text x="90" y="68" text-anchor="middle" font-family="Arial" font-size="14">2021 - Annulé</text>
-  <text x="90" y="84" text-anchor="middle" font-family="Arial" font-size="14">par l'utilisateur</text>
-
-  <text x="90" y="120" text-anchor="middle" font-family="Arial" font-size="13" font-weight="bold">Relancer en cliquant</text>
+  <text x="90" y="68" text-anchor="middle" font-family="Arial" font-size="14">2021 - Montée</text>
 </svg>
