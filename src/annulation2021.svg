@@ -20,6 +20,5 @@
   <text x="90" y="68" text-anchor="middle" font-family="Arial" font-size="14">2021 - Annulé</text>
   <text x="90" y="84" text-anchor="middle" font-family="Arial" font-size="14">par l'utilisateur</text>
 
-  <text x="90" y="120" text-anchor="middle" font-family="Arial" font-size="13" font-weight="bold">Annulation Relancer en</text>
-  <text x="90" y="168" text-anchor="middle" font-family="Arial" font-size="13" font-weight="bold">cliquant</text>
+  <text x="90" y="120" text-anchor="middle" font-family="Arial" font-size="13" font-weight="bold">Relancer en cliquant</text>
 </svg>
