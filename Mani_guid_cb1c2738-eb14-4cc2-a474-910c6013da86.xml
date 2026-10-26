@@ -15,7 +15,7 @@
   <SupportUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/"/>
   <AppDomains>
     <AppDomain>https://dellasiegaps.github.io</AppDomain>
-    <AppDomain>https://dellasiegaexternal2.github.io</AppDomain>
+    <!-- ce domaine doit être Sup: //dellasiegaexternal2.github.io -->
   </AppDomains>
   <Hosts><Host Name="Mailbox"/></Hosts>
   <Requirements><Sets><Set Name="Mailbox" MinVersion="1.8"/></Sets></Requirements>
