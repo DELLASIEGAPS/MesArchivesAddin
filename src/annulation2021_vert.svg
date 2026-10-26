@@ -3,7 +3,7 @@
 
   <ellipse cx="90" cy="25" rx="12" ry="4" fill="#000"/>
   <rect x="78" y="25" width="24" height="6" fill="#000"/>
-  <line x1="80" y1="28" x2="100" y2="28" stroke="#999" stroke-width="0.8"/>
+  <line x1="80" y1="28" x2="150" y2="28" stroke="#999" stroke-width="0.8"/>
 
   <ellipse cx="90" cy="31" rx="12" ry="4" fill="#000"/>
   <rect x="78" y="31" width="24" height="6" fill="#000"/>
