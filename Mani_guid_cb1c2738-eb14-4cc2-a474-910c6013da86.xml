@@ -3,8 +3,8 @@
            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
            xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
            xsi:type="MailApp">
-  <Id>cb1c2738-eb14-4cc2-a474-910c6013da86</Id>
-  <Version>2.0.2.0</Version>
+  <Id>014352da-084d-44ca-9589-65f15fe9af4e</Id>
+  <Version>2.0.2.1</Version>
   <ProviderName>MesArchives_SPOT</ProviderName>
   <DefaultLocale>fr-FR</DefaultLocale>
   <DisplayName DefaultValue="MesArchives SPOT"/>
