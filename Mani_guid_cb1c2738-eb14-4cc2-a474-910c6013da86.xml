@@ -8,11 +8,11 @@
   <ProviderName>MesArchives_SPOT</ProviderName>
   <DefaultLocale>fr-FR</DefaultLocale>
   <DisplayName DefaultValue="MesArchives SPOT"/>
-  <Description DefaultValue="SPOT - Mes Archives Banque de France - Restauration des archives PST. Bandeau Archives 2021-2024."/>
+  <Description DefaultValue="Mes Archives Banque de France"/>
   <!-- ICONS PNG - DOIT EXISTER SUR GITHUB PAGES -->
   <IconUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/annulation2021.svg"/>
   <HighResolutionIconUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/annulation2021.svg"/>
-  <SupportUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/"/>
+  <SupportUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/Autres/support.html"/>
   <AppDomains>
     <AppDomain>https://dellasiegaps.github.io</AppDomain>
     <!-- ce domaine doit être Sup: //dellasiegaexternal2.github.io -->
