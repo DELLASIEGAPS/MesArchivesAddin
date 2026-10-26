@@ -15,13 +15,12 @@
 
   <ellipse cx="90" cy="43" rx="12" ry="4" fill="#000"/>
 
-  <circle cx="107" cy="42" r="5" fill="#d90429"/>
+  <circle cx="107" cy="42" r="5" fill="#04d952"/>
 
   <text x="90" y="68" text-anchor="middle" font-family="Arial" font-size="14">2021 - Annulé</text>
   <text x="90" y="84" text-anchor="middle" font-family="Arial" font-size="14">par l'utilisateur</text>
 
-  <text x="90" y="120" text-anchor="middle" font-family="Arial" font-size="13" font-weight="bold">Annulation du</text>
-  <text x="90" y="136" text-anchor="middle" font-family="Arial" font-size="13" font-weight="bold">téléchargement de l'archive</text>
-  <text x="90" y="152" text-anchor="middle" font-family="Arial" font-size="13" font-weight="bold">Vous devez le relancer en</text>
-  <text x="90" y="168" text-anchor="middle" font-family="Arial" font-size="13" font-weight="bold">cliquant dessus.</text>
+  <text x="90" y="120" text-anchor="middle" font-family="Arial" font-size="13" font-weight="bold">Annulation</text>
+  <text x="90" y="152" text-anchor="middle" font-family="Arial" font-size="13" font-weight="bold">Relancer en</text>
+  <text x="90" y="168" text-anchor="middle" font-family="Arial" font-size="13" font-weight="bold">cliquant</text>
 </svg>
