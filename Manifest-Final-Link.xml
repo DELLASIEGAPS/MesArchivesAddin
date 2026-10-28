@@ -26,8 +26,8 @@
   <!-- Identifiant unique (GUID). Ne pas le changer, sinon Outlook croit que c'est un autre complement. -->
   <Id>014352da-084d-44ca-9589-65f15fe9af4e</Id>
 
-  <!-- Numero de version. A augmenter a chaque nouvelle livraison (ex : 2.0.6.0). -->
-  <Version>2.0.5.0</Version>
+  <!-- Numero de version. A augmenter a chaque nouvelle livraison (ex : 2.0.7.0). -->
+  <Version>2.0.6.0</Version>
 
   <!-- Nom de l'editeur -->
   <ProviderName>MesArchives_SPOT</ProviderName>
@@ -194,6 +194,7 @@
                     <Label resid="archive2024LabelGreen"/><Supertip><Title resid="archive2024LabelGreen"/><Description resid="archive2024DescGreen"/></Supertip>
                     <Icon><bt:Image size="16" resid="IconGreen.16"/><bt:Image size="32" resid="IconGreen.32"/><bt:Image size="80" resid="IconGreen.80"/></Icon>
                     <Action xsi:type="ExecuteFunction"><FunctionName>unmount2024</FunctionName></Action>
+                    <Enabled>false</Enabled>
                   </Control>
 
                   <!-- Bouton "SPOT" : ouvre le volet d'information (taskpane) -->
