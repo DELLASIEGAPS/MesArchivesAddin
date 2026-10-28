@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0" xsi:type="MailApp">
+  <Id>014352da-084d-44ca-9589-65f15fe9af4e</Id>
+  <Version>2.0.4.0</Version>
+  <ProviderName>MesArchives_SPOT</ProviderName>
+  <DefaultLocale>fr-FR</DefaultLocale>
+  <DisplayName DefaultValue="MesArchives SPOT"/>
+  <Description DefaultValue="Mes Archives BdF - 4 icones rouges -> clic 2024 charge PST local -> verte + searchable -> re-clic decharge -> rouge"/>
+  <IconUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_VSTO_32.png"/>
+  <HighResolutionIconUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_VSTO_80.png"/>
+  <SupportUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/Autres/support.html"/>
+  <AppDomains>
+    <AppDomain>https://dellasiegaps.github.io</AppDomain>
+    <AppDomain>https://dellasiegaexternal2.github.io</AppDomain>
+  </AppDomains>
+  <Hosts><Host Name="Mailbox"/></Hosts>
+  <Requirements><Sets><Set Name="Mailbox" MinVersion="1.8"/></Sets></Requirements>
+  <FormSettings>
+    <Form xsi:type="ItemRead">
+      <DesktopSettings>
+        <SourceLocation DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/taskpane/taskpane.html"/>
+        <RequestedHeight>450</RequestedHeight>
+      </DesktopSettings>
+    </Form>
+  </FormSettings>
+  <Permissions>ReadWriteMailbox</Permissions>
+  <Rule xsi:type="RuleCollection" Mode="Or">
+    <Rule xsi:type="ItemIs" ItemType="Message" FormType="Read"/>
+    <Rule xsi:type="ItemIs" ItemType="Message" FormType="Edit"/>
+  </Rule>
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides/1.1" xsi:type="VersionOverridesV1_0">
+    <Requirements><bt:Sets DefaultMinVersion="1.8"><bt:Set Name="Mailbox"/></bt:Sets></Requirements>
+    <Hosts>
+      <Host xsi:type="MailHost">
+        <Runtimes><Runtime resid="Taskpane.Url" lifetime="long"/></Runtimes>
+        <DesktopFormFactor>
+          <FunctionFile resid="Commands.Url"/>
+          <ExtensionPoint xsi:type="MessageReadCommandSurface">
+            <OfficeTab id="TabDefault">
+              <Group id="MesArchivesGroup">
+                <Label resid="GroupLabel"/>
+                <Control xsi:type="Button" id="archive2021_mount"><Label resid="archive2021Label"/><Supertip><Title resid="archive2021Label"/><Description resid="archive2021Desc"/></Supertip><Icon><bt:Image size="16" resid="IconRed.16"/><bt:Image size="32" resid="IconRed.32"/><bt:Image size="80" resid="IconRed.80"/></Icon><Action xsi:type="ExecuteFunction"><FunctionName>mount2021</FunctionName></Action></Control>
+                <Control xsi:type="Button" id="archive2022_mount"><Label resid="archive2022Label"/><Supertip><Title resid="archive2022Label"/><Description resid="archive2022Desc"/></Supertip><Icon><bt:Image size="16" resid="IconRed.16"/><bt:Image size="32" resid="IconRed.32"/><bt:Image size="80" resid="IconRed.80"/></Icon><Action xsi:type="ExecuteFunction"><FunctionName>mount2022</FunctionName></Action></Control>
+                <Control xsi:type="Button" id="archive2023_mount"><Label resid="archive2023Label"/><Supertip><Title resid="archive2023Label"/><Description resid="archive2023Desc"/></Supertip><Icon><bt:Image size="16" resid="IconRed.16"/><bt:Image size="32" resid="IconRed.32"/><bt:Image size="80" resid="IconRed.80"/></Icon><Action xsi:type="ExecuteFunction"><FunctionName>mount2023</FunctionName></Action></Control>
+                <Control xsi:type="Button" id="archive2024_mount"><Label resid="archive2024LabelRed"/><Supertip><Title resid="archive2024LabelRed"/><Description resid="archive2024DescRed"/></Supertip><Icon><bt:Image size="16" resid="IconRed.16"/><bt:Image size="32" resid="IconRed.32"/><bt:Image size="80" resid="IconRed.80"/></Icon><Action xsi:type="ExecuteFunction"><FunctionName>mount2024</FunctionName></Action></Control>
+                <Control xsi:type="Button" id="archive2024_unmount"><Label resid="archive2024LabelGreen"/><Supertip><Title resid="archive2024LabelGreen"/><Description resid="archive2024DescGreen"/></Supertip><Icon><bt:Image size="16" resid="IconGreen.16"/><bt:Image size="32" resid="IconGreen.32"/><bt:Image size="80" resid="IconGreen.80"/></Icon><Action xsi:type="ExecuteFunction"><FunctionName>unmount2024</FunctionName></Action></Control>
+                <Control xsi:type="Button" id="about"><Label resid="aboutLabel"/><Supertip><Title resid="aboutLabel"/><Description resid="aboutDesc"/></Supertip><Icon><bt:Image size="16" resid="IconVSTO.16"/><bt:Image size="32" resid="IconVSTO.32"/><bt:Image size="80" resid="IconVSTO.80"/></Icon><Action xsi:type="ShowTaskpane"><SourceLocation resid="Taskpane.Url"/></Action></Control>
+              </Group>
+            </OfficeTab>
+          </ExtensionPoint>
+        </DesktopFormFactor>
+      </Host>
+    </Hosts>
+    <Resources>
+      <bt:Images>
+        <bt:Image id="IconVSTO.16" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_VSTO_16.png"/>
+        <bt:Image id="IconVSTO.32" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_VSTO_32.png"/>
+        <bt:Image id="IconVSTO.80" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_VSTO_80.png"/>
+        <bt:Image id="IconRed.16" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_16.png"/>
+        <bt:Image id="IconRed.32" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_32.png"/>
+        <bt:Image id="IconRed.80" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_80.png"/>
+        <bt:Image id="IconGreen.16" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_green_16.png"/>
+        <bt:Image id="IconGreen.32" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_green_32.png"/>
+        <bt:Image id="IconGreen.80" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_green_80.png"/>
+      </bt:Images>
+      <bt:Urls>
+        <bt:Url id="Commands.Url" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/commands/commands.html"/>
+        <bt:Url id="Taskpane.Url" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/taskpane/taskpane.html"/>
+      </bt:Urls>
+      <bt:ShortStrings>
+        <bt:String id="GroupLabel" DefaultValue="Mes Archives BdF"/>
+        <bt:String id="archive2021Label" DefaultValue="2021 - Indispo."/>
+        <bt:String id="archive2022Label" DefaultValue="2022 - Indispo."/>
+        <bt:String id="archive2023Label" DefaultValue="2023 - Indispo."/>
+        <bt:String id="archive2024LabelRed" DefaultValue="2024 - Rouge"/>
+        <bt:String id="archive2024LabelGreen" DefaultValue="2024 - Vert"/>
+        <bt:String id="aboutLabel" DefaultValue="SPOT"/>
+      </bt:ShortStrings>
+      <bt:LongStrings>
+        <bt:String id="archive2021Desc" DefaultValue="2021 - Annulé par l'utilisateur - Relancer en cliquant"/>
+        <bt:String id="archive2022Desc" DefaultValue="2022 - Annulé par l'utilisateur - Relancer en cliquant"/>
+        <bt:String id="archive2023Desc" DefaultValue="2023 - Annulé par l'utilisateur - Relancer en cliquant"/>
+        <bt:String id="archive2024DescRed" DefaultValue="2024 - Annulé - Clic charge le PST local déposé manuellement, passe en vert, messages searchables"/>
+        <bt:String id="archive2024DescGreen" DefaultValue="2024 - Montée - Clic décharge le PST, repasse en rouge, messages plus visibles"/>
+        <bt:String id="aboutDesc" DefaultValue="SPOT - Mes Archives - Toggle Rouge/Vert PST local"/>
+      </bt:LongStrings>
+    </Resources>
+  </VersionOverrides>
+</OfficeApp>
