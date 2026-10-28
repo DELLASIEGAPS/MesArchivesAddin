@@ -7,7 +7,7 @@
    - comment s'appelle le complement et qui l'a cree
    - ou se trouvent les pages web (hebergees sur GitHub Pages)
    - quels boutons afficher dans le ruban quand on lit un mail
-
+ 
   IMPORTANT (c'est ce qui causait l'erreur de validation) :
   Le fichier contient DEUX blocs "VersionOverrides", l'un DANS l'autre :
    1) Le bloc externe (V1.0) : exige par le schema Microsoft.
@@ -27,7 +27,7 @@
   <Id>014352da-084d-44ca-9589-65f15fe9af4e</Id>
 
   <!-- Numero de version. A augmenter a chaque nouvelle livraison (ex : 2.0.7.0). -->
-  <Version>2.0.6.0</Version>
+  <Version>2.0.7.0</Version>
 
   <!-- Nom de l'editeur -->
   <ProviderName>MesArchives_SPOT</ProviderName>
