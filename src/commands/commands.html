@@ -1,15 +1,10 @@
 <!DOCTYPE html>
-<html><head><meta charset="UTF-8"><script src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script></head>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <script src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
+</head>
 <body>
-<script>
-Office.onReady(() =>{};
-    function openArchive2021(event){ Office.context.mailbox.displayNewMessageForm({subjet:"Demande Archive 2021"}); event.completed();}
-    function openArchive2022(event){ Office.context.mailbox.displayNewMessageForm({subjet:"Demande Archive 2022"}); event.completed();}
-    function openArchive2023(event){ Office.context.mailbox.displayNewMessageForm({subjet:"Demande Archive 2023"}); event.completed();}
-    function openArchive2024(event){ Office.context.mailbox.displayNewMessageForm({subjet:"Demande Archive 2024"}); event.completed();}
-    Office.actions.associate("openArchive2021", openArchive2021);
-    Office.actions.associate("openArchive2022", openArchive2022);
-    Office.actions.associate("openArchive2023", openArchive2023);
-    Office.actions.associate("openArchive2024", openArchive2024);
-</script>
-</body></html>
+  <script src="commands.js"></script>
+</body>
+</html>
