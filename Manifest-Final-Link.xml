@@ -101,12 +101,19 @@
             <OfficeTab id="TabDefault">
               <Group id="MesArchivesGroup">
                 <Label resid="GroupLabel"/>
-                <!-- Un seul bouton ici (2024 rouge) : version de secours pour anciens Outlook -->
+                <!-- Boutons rouge/vert 2024 : version de secours pour anciens Outlook -->
                 <Control xsi:type="Button" id="archive2024_mount">
                   <Label resid="archive2024LabelRed"/>
                   <Supertip><Title resid="archive2024LabelRed"/><Description resid="archive2024DescRed"/></Supertip>
                   <Icon><bt:Image size="16" resid="IconRed.16"/><bt:Image size="32" resid="IconRed.32"/><bt:Image size="80" resid="IconRed.80"/></Icon>
                   <Action xsi:type="ExecuteFunction"><FunctionName>mount2024</FunctionName></Action>
+                </Control>
+                <Control xsi:type="Button" id="archive2024_unmount">
+                  <Label resid="archive2024LabelGreen"/>
+                  <Supertip><Title resid="archive2024LabelGreen"/><Description resid="archive2024DescGreen"/></Supertip>
+                  <Icon><bt:Image size="16" resid="IconGreen.16"/><bt:Image size="32" resid="IconGreen.32"/><bt:Image size="80" resid="IconGreen.80"/></Icon>
+                  <Action xsi:type="ExecuteFunction"><FunctionName>unmount2024</FunctionName></Action>
+                  <Enabled>false</Enabled>
                 </Control>
               </Group>
             </OfficeTab>
@@ -121,6 +128,9 @@
         <bt:Image id="IconRed.16" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_16.png"/>
         <bt:Image id="IconRed.32" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_32.png"/>
         <bt:Image id="IconRed.80" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_80.png"/>
+        <bt:Image id="IconGreen.16" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_green_16.png"/>
+        <bt:Image id="IconGreen.32" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_green_32.png"/>
+        <bt:Image id="IconGreen.80" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_green_80.png"/>
       </bt:Images>
       <bt:Urls>
         <bt:Url id="Commands.Url" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/commands/commands.html"/>
@@ -128,9 +138,11 @@
       <bt:ShortStrings>
         <bt:String id="GroupLabel" DefaultValue="Mes Archives BdF"/>
         <bt:String id="archive2024LabelRed" DefaultValue="2024 - Rouge"/>
+        <bt:String id="archive2024LabelGreen" DefaultValue="2024 - Vert"/>
       </bt:ShortStrings>
       <bt:LongStrings>
         <bt:String id="archive2024DescRed" DefaultValue="2024 Annulé - Charge PST local"/>
+        <bt:String id="archive2024DescGreen" DefaultValue="2024 Monté - Décharge le PST local"/>
       </bt:LongStrings>
     </Resources>
 
