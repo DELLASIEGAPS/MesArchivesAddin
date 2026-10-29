@@ -102,17 +102,10 @@
               <Group id="MesArchivesGroup">
                 <Label resid="GroupLabel"/>
                 <!-- Boutons rouge/vert 2024 : version de secours pour anciens Outlook -->
-                <Control xsi:type="Button" id="archive2024_mount">
-                  <Label resid="archive2024LabelRed"/>
-                  <Supertip><Title resid="archive2024LabelRed"/><Description resid="archive2024DescRed"/></Supertip>
+                <Control xsi:type="Button" id="archive2024">
+                  <Label resid="archive2024LabelRed"/><Supertip><Title resid="archive2024LabelRed"/><Description resid="archive2024DescRed"/></Supertip>
                   <Icon><bt:Image size="16" resid="IconRed.16"/><bt:Image size="32" resid="IconRed.32"/><bt:Image size="80" resid="IconRed.80"/></Icon>
-                  <Action xsi:type="ExecuteFunction"><FunctionName>mount2024</FunctionName></Action>
-                </Control>
-                <Control xsi:type="Button" id="archive2024_unmount">
-                  <Label resid="archive2024LabelGreen"/>
-                  <Supertip><Title resid="archive2024LabelGreen"/><Description resid="archive2024DescGreen"/></Supertip>
-                  <Icon><bt:Image size="16" resid="IconGreen.16"/><bt:Image size="32" resid="IconGreen.32"/><bt:Image size="80" resid="IconGreen.80"/></Icon>
-                  <Action xsi:type="ExecuteFunction"><FunctionName>unmount2024</FunctionName></Action>
+                  <Action xsi:type="ExecuteFunction"><FunctionName>open2024</FunctionName></Action>
                 </Control>
               </Group>
             </OfficeTab>
@@ -136,11 +129,11 @@
       </bt:Urls>
       <bt:ShortStrings>
         <bt:String id="GroupLabel" DefaultValue="TEST Archives BdF"/>
-        <bt:String id="archive2024LabelRed" DefaultValue="2024 - Rouge"/>
+        <bt:String id="archive2024LabelRed" DefaultValue="2024 - Archives"/>
         <bt:String id="archive2024LabelGreen" DefaultValue="2024 - Vert"/>
       </bt:ShortStrings>
       <bt:LongStrings>
-        <bt:String id="archive2024DescRed" DefaultValue="2024 Annulé - Charge PST local"/>
+        <bt:String id="archive2024DescRed" DefaultValue="Ouvre la fen&#234;tre 2024 : charge ou d&#233;charge le PST local (rouge/vert)"/>
         <bt:String id="archive2024DescGreen" DefaultValue="2024 Monté - Décharge le PST local"/>
       </bt:LongStrings>
     </Resources>
@@ -193,19 +186,12 @@
                     <Action xsi:type="ExecuteFunction"><FunctionName>mount2023</FunctionName></Action>
                   </Control>
 
-                  <!-- Bouton 2024 ROUGE : un clic charge le PST local, puis il passe au vert -->
-                  <Control xsi:type="Button" id="archive2024_mount">
-                    <Label resid="archive2024LabelRed"/><Supertip><Title resid="archive2024LabelRed"/><Description resid="archive2024DescRed"/></Supertip>
-                    <Icon><bt:Image size="16" resid="IconRed.16"/><bt:Image size="32" resid="IconRed.32"/><bt:Image size="80" resid="IconRed.80"/></Icon>
-                    <Action xsi:type="ExecuteFunction"><FunctionName>mount2024</FunctionName></Action>
-                  </Control>
-
-                  <!-- Bouton 2024 VERT : un clic decharge le PST, puis il repasse au rouge -->
-                  <Control xsi:type="Button" id="archive2024_unmount">
-                    <Label resid="archive2024LabelGreen"/><Supertip><Title resid="archive2024LabelGreen"/><Description resid="archive2024DescGreen"/></Supertip>
-                    <Icon><bt:Image size="16" resid="IconGreen.16"/><bt:Image size="32" resid="IconGreen.32"/><bt:Image size="80" resid="IconGreen.80"/></Icon>
-                    <Action xsi:type="ExecuteFunction"><FunctionName>unmount2024</FunctionName></Action>
-                  </Control>
+                  <!-- Bouton 2024 : ouvre un popup HTML avec le switch rouge/vert -->
+                  <Control xsi:type="Button" id="archive2024">
+                  <Label resid="archive2024LabelRed"/><Supertip><Title resid="archive2024LabelRed"/><Description resid="archive2024DescRed"/></Supertip>
+                  <Icon><bt:Image size="16" resid="IconRed.16"/><bt:Image size="32" resid="IconRed.32"/><bt:Image size="80" resid="IconRed.80"/></Icon>
+                  <Action xsi:type="ExecuteFunction"><FunctionName>open2024</FunctionName></Action>
+                </Control>
 
                   <!-- Bouton "SPOT" : ouvre le volet d'information (taskpane) -->
                   <Control xsi:type="Button" id="about">
@@ -247,7 +233,7 @@
           <bt:String id="archive2021Label" DefaultValue="2021 - Indispo."/>
           <bt:String id="archive2022Label" DefaultValue="2022 - Indispo."/>
           <bt:String id="archive2023Label" DefaultValue="2023 - Indispo."/>
-          <bt:String id="archive2024LabelRed" DefaultValue="2024 - Rouge"/>
+          <bt:String id="archive2024LabelRed" DefaultValue="2024 - Archives"/>
           <bt:String id="archive2024LabelGreen" DefaultValue="2024 - Vert"/>
           <bt:String id="aboutLabel" DefaultValue="SPOT"/>
         </bt:ShortStrings>
@@ -256,7 +242,7 @@
           <bt:String id="archive2021Desc" DefaultValue="2021 - Annulé par l'utilisateur - Relancer en cliquant"/>
           <bt:String id="archive2022Desc" DefaultValue="2022 - Annulé par l'utilisateur - Relancer en cliquant"/>
           <bt:String id="archive2023Desc" DefaultValue="2023 - Annulé par l'utilisateur - Relancer en cliquant"/>
-          <bt:String id="archive2024DescRed" DefaultValue="2024 - Annulé - Clic charge le PST local déposé manuellement, passe en vert, messages searchables"/>
+          <bt:String id="archive2024DescRed" DefaultValue="Ouvre la fen&#234;tre 2024 : charge ou d&#233;charge le PST local (rouge/vert)"/>
           <bt:String id="archive2024DescGreen" DefaultValue="2024 - Montée - Clic décharge le PST, repasse en rouge, messages plus visibles"/>
           <bt:String id="aboutDesc" DefaultValue="SPOT - Mes Archives - Toggle Rouge/Vert PST local"/>
         </bt:LongStrings>

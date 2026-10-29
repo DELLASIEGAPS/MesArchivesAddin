@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Archives 2024</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
+  <style>
+    body { font-family: "Segoe UI", sans-serif; margin: 0; padding: 16px; text-align: center; }
+    h2 { margin: 0 0 12px; font-size: 18px; }
+    #btn { width: 120px; height: 120px; border-radius: 50%; border: 0; cursor: pointer; color: #fff;
+           font-size: 16px; font-weight: 600; background: #c62828; }
+    #btn.green { background: #2e7d32; }
+    #btn:disabled { opacity: .6; cursor: wait; }
+    #state { margin: 12px 0 4px; font-weight: 600; }
+    #msg { min-height: 18px; font-size: 12px; color: #b26a00; }
+  </style>
+</head>
+<body>
+  <h2>Archives 2024</h2>
+  <button id="btn" type="button"></button>
+  <div id="state"></div>
+  <div id="msg"></div>
+  <script>
+    const PST_AGENT = "http://127.0.0.1:45731";
+    const FILE_NAME = "2024.pst";
+    const btn = document.getElementById("btn");
+    const stateEl = document.getElementById("state");
+    const msgEl = document.getElementById("msg");
+    let mounted = new URLSearchParams(location.search).get("state") === "mounted";
+
+    function render() {
+      btn.className = mounted ? "green" : "";
+      btn.textContent = mounted ? "Décharger" : "Charger";
+      stateEl.textContent = mounted ? "2024 - Vert (monté)" : "2024 - Rouge (non monté)";
+    }
+
+    async function callAgent(route) {
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), 20000);
+      try {
+        const resp = await fetch(PST_AGENT + route, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fileName: FILE_NAME }),
+          signal: controller.signal
+        });
+        let data = {};
+        try { data = await resp.json(); } catch (_) {}
+        return { ok: resp.ok && data.ok !== false, error: data.error || "HTTP " + resp.status };
+      } finally {
+        clearTimeout(t);
+      }
+    }
+
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      msgEl.textContent = "";
+      mounted = !mounted; // flip-flop immédiat au clic
+      render();
+      try {
+        const res = await callAgent(mounted ? "/mount-pst" : "/unmount-pst");
+        if (!res.ok) msgEl.textContent = "Agent PST : " + res.error;
+      } catch (e) {
+        msgEl.textContent = "Agent PST local injoignable (127.0.0.1:45731).";
+      }
+      btn.disabled = false;
+      Office.context.ui.messageParent(mounted ? "mounted" : "unmounted");
+    });
+
+    Office.onReady(render);
+  </script>
+</body>
+</html>

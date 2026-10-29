@@ -1,4 +1,3 @@
-const TOGGLE_YEARS = ["2024"];
 const storageKey = (year) => `archive${year}`;
 
 // ===== Agent local PST (Windows, Outlook Desktop) =====
@@ -14,44 +13,6 @@ function writeState(year, value) {
     if (value) localStorage.setItem(storageKey(year), value);
     else localStorage.removeItem(storageKey(year));
   } catch (e) { console.error(e); }
-}
-
-// Rouge/vert : monte => bouton "unmount" (vert) actif, "mount" (rouge) inactif ; et inversement.
-async function setMounted(year, mounted) {
-  if (!TOGGLE_YEARS.includes(year) || !Office.ribbon || !Office.ribbon.requestUpdate) return;
-  try {
-    await Office.ribbon.requestUpdate({
-      tabs: [{
-        id: "TabDefault",
-        groups: [{
-          id: "MesArchivesGroup",
-          controls: [
-            { id: `archive${year}_mount`, enabled: !mounted },
-            { id: `archive${year}_unmount`, enabled: mounted }
-          ]
-        }]
-      }]
-    });
-  } catch (e) {
-    console.error("Ribbon update failed:", e);
-  }
-  // Test show/hide : requestUpdate n'est documente que pour "enabled" dans Outlook ; essai isole.
-  try {
-    await Office.ribbon.requestUpdate({
-      tabs: [{
-        id: "TabDefault",
-        groups: [{
-          id: "MesArchivesGroup",
-          controls: [
-            { id: `archive${year}_mount`, visible: !mounted },
-            { id: `archive${year}_unmount`, visible: mounted }
-          ]
-        }]
-      }]
-    });
-  } catch (e) {
-    console.warn("Show/hide non supporte :", e);
-  }
 }
 
 function notifyInfo(key, message) {
@@ -86,44 +47,6 @@ async function callAgent(route, payload) {
   }
 }
 
-async function mountPst(year, event) {
-  try {
-    const fileName = PST_FILES[year];
-    writeState(year, "mounted");
-    await setMounted(year, true); // switch immediat au clic : rouge -> vert
-    const res = await callAgent("/mount-pst", { fileName });
-    if (res.ok && res.data && res.data.ok) {
-      writeState(year, "mounted");
-      await setMounted(year, true); // rouge -> vert
-    } else if (res.status === 404 || (res.data && res.data.code === "PST_NOT_FOUND")) {
-      notifyInfo("pstMount", `PST introuvable localement : ${fileName}. Verifiez la synchronisation OneDrive.`);
-    } else {
-      notifyInfo("pstMount", `Montage PST echoue : ${(res.data && res.data.error) || "HTTP " + res.status}`);
-    }
-  } catch (e) {
-    notifyInfo("pstMount", "Agent PST local injoignable (127.0.0.1:45731).");
-  }
-  event.completed();
-}
-
-async function unmountPst(year, event) {
-  try {
-    const fileName = PST_FILES[year];
-    writeState(year, null);
-    await setMounted(year, false); // switch immediat au clic : vert -> rouge
-    const res = await callAgent("/unmount-pst", { fileName });
-    if (res.ok && res.data && res.data.ok) {
-      writeState(year, null);
-      await setMounted(year, false); // vert -> rouge
-    } else {
-      notifyInfo("pstMount", `Demontage PST echoue : ${(res.data && res.data.error) || "HTTP " + res.status}`);
-    }
-  } catch (e) {
-    notifyInfo("pstMount", "Agent PST local injoignable (127.0.0.1:45731).");
-  }
-  event.completed();
-}
-
 function openModop(event) {
   window.open("https://dellasiegaexternal2.github.io/MesArchivesAddin/ModOp_Mes_ARCHIVES.pdf", "_blank");
   event.completed({ allowEvent: true });
@@ -138,9 +61,27 @@ function openModop(event) {
   Office.actions.associate(`unmount${year}`, (event) => event.completed());
 });
 
-// 2024 => agent PST local
-Office.actions.associate("mount2024", (event) => mountPst("2024", event));
-Office.actions.associate("unmount2024", (event) => unmountPst("2024", event));
+// 2024 => popup HTML (flip-flop rouge/vert) qui appelle l agent PST local
+let dialog2024 = null;
+function open2024(event) {
+  const state = readState("2024") === "mounted" ? "mounted" : "unmounted";
+  const url = `${location.origin}${location.pathname.replace(/[^/]*$/, "")}dialog2024.html?state=${state}`;
+  Office.context.ui.displayDialogAsync(url, { height: 40, width: 25, displayInIframe: false }, (res) => {
+    if (res.status !== Office.AsyncResultStatus.Succeeded) {
+      notifyInfo("pstMount", "Popup 2024 impossible : " + res.error.message);
+      event.completed();
+      return;
+    }
+    dialog2024 = res.value;
+    dialog2024.addEventHandler(Office.EventType.DialogMessageReceived, (arg) => {
+      writeState("2024", arg.message === "mounted" ? "mounted" : null);
+    });
+    dialog2024.addEventHandler(Office.EventType.DialogEventReceived, () => {
+      dialog2024 = null;
+    });
+    event.completed();
+  });
+}
+Office.actions.associate("open2024", open2024);
 Office.actions.associate("openModop", openModop);
-
-Office.onReady(() => setMounted("2024", readState("2024") === "mounted"));
+
