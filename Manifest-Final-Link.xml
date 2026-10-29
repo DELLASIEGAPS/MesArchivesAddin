@@ -113,7 +113,6 @@
                   <Supertip><Title resid="archive2024LabelGreen"/><Description resid="archive2024DescGreen"/></Supertip>
                   <Icon><bt:Image size="16" resid="IconGreen.16"/><bt:Image size="32" resid="IconGreen.32"/><bt:Image size="80" resid="IconGreen.80"/></Icon>
                   <Action xsi:type="ExecuteFunction"><FunctionName>unmount2024</FunctionName></Action>
-                  <Enabled>false</Enabled>
                 </Control>
               </Group>
             </OfficeTab>
@@ -206,7 +205,6 @@
                     <Label resid="archive2024LabelGreen"/><Supertip><Title resid="archive2024LabelGreen"/><Description resid="archive2024DescGreen"/></Supertip>
                     <Icon><bt:Image size="16" resid="IconGreen.16"/><bt:Image size="32" resid="IconGreen.32"/><bt:Image size="80" resid="IconGreen.80"/></Icon>
                     <Action xsi:type="ExecuteFunction"><FunctionName>unmount2024</FunctionName></Action>
-                    <Enabled>false</Enabled>
                   </Control>
 
                   <!-- Bouton "SPOT" : ouvre le volet d'information (taskpane) -->

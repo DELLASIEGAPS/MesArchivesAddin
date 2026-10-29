@@ -72,6 +72,8 @@ async function callAgent(route, payload) {
 async function mountPst(year, event) {
   try {
     const fileName = PST_FILES[year];
+    writeState(year, "mounted");
+    await setMounted(year, true); // switch immediat au clic : rouge -> vert
     const res = await callAgent("/mount-pst", { fileName });
     if (res.ok && res.data && res.data.ok) {
       writeState(year, "mounted");
@@ -90,6 +92,8 @@ async function mountPst(year, event) {
 async function unmountPst(year, event) {
   try {
     const fileName = PST_FILES[year];
+    writeState(year, null);
+    await setMounted(year, false); // switch immediat au clic : vert -> rouge
     const res = await callAgent("/unmount-pst", { fileName });
     if (res.ok && res.data && res.data.ok) {
       writeState(year, null);
