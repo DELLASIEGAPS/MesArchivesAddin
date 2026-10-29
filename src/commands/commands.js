@@ -1,115 +1,88 @@
-Office.onReady(() => {});
-
-const GRAPH = "https://graph.microsoft.com/v1.0";
-const TOGGLE_YEARS = ["2024"];
-const archivePath = (year) => `/me/drive/root:/MesArchives/${year}:/children`;
 const storageKey = (year) => `archive${year}`;
 
-function getToken() {
-    return Office.auth.getAccessToken({ allowSignInPrompt: true, allowConsentPrompt: true });
-}
-
-async function graph(path, token, options = {}) {
-    const response = await fetch(`${GRAPH}${path}`, {
-        ...options,
-        headers: { Authorization: "Bearer " + token, ...(options.headers || {}) }
-    });
-    if (!response.ok) {
-        throw new Error(`Graph ${response.status} on ${path}`);
-    }
-    return response.status === 204 ? null : response.json();
-}
-
-function toBase64(text) {
-    return btoa(unescape(encodeURIComponent(text)));
-}
+// ===== Agent local PST (Windows, Outlook Desktop) =====
+const PST_AGENT = "http://127.0.0.1:45731";
+const PST_FILES = { "2024": "2024.pst" }; // nom du fichier PST depose dans OneDrive (synchronise localement)
 
 function readState(year) {
-    try { return localStorage.getItem(storageKey(year)); } catch (e) { return null; }
+  try { return localStorage.getItem(storageKey(year)); } catch (e) { return null; }
 }
 
 function writeState(year, value) {
-    try {
-        if (value) { localStorage.setItem(storageKey(year), value); }
-        else { localStorage.removeItem(storageKey(year)); }
-    } catch (e) { console.error(e); }
+  try {
+    if (value) localStorage.setItem(storageKey(year), value);
+    else localStorage.removeItem(storageKey(year));
+  } catch (e) { console.error(e); }
 }
 
-// Red/green toggle: mounted => "unmount" button enabled, "mount" disabled; unmounted => reverse.
-async function setMounted(year, mounted) {
-    if (!TOGGLE_YEARS.includes(year) || !Office.ribbon || !Office.ribbon.requestUpdate) { return; }
-    try {
-        await Office.ribbon.requestUpdate({
-            tabs: [{
-                id: "TabDefault",
-                groups: [{
-                    id: "MesArchivesGroup",
-                    controls: [
-                        { id: `archive${year}_mount`, enabled: !mounted },
-                        { id: `archive${year}_unmount`, enabled: mounted }
-                    ]
-                }]
-            }]
-        });
-    } catch (e) {
-        console.error("Ribbon update failed:", e);
-    }
+function notifyInfo(key, message) {
+  const trimmed = (message || "").substring(0, 150);
+  const item = Office && Office.context && Office.context.mailbox && Office.context.mailbox.item;
+  if (!item || !item.notificationMessages) { console.warn(trimmed); return; }
+  item.notificationMessages.replaceAsync(key, {
+    type: Office.MailboxEnums.ItemNotificationMessageType.InformationalMessage,
+    message: trimmed,
+    icon: "IconRed.80",
+    persistent: false
+  }, (res) => {
+    if (res.status !== Office.AsyncResultStatus.Succeeded) console.warn("Notification failed:", res.error);
+  });
 }
 
-async function mount(year, event) {
-    try {
-        const token = await getToken();
-        const files = await graph(archivePath(year), token);
-        const emls = (files.value || []).filter((f) => /\.eml$/i.test(f.name) && f["@microsoft.graph.downloadUrl"]);
-        const folder = await graph("/me/mailFolders", token, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ displayName: `Archives ${year}` })
-        });
-        writeState(year, folder.id);
-        for (const file of emls) {
-            try {
-                const download = await fetch(file["@microsoft.graph.downloadUrl"]);
-                if (!download.ok) { throw new Error(`Download ${download.status}`); }
-                const mime = await download.text();
-                await graph(`/me/mailFolders/${folder.id}/messages`, token, {
-                    method: "POST",
-                    headers: { "Content-Type": "text/plain" },
-                    body: toBase64(mime)
-                });
-            } catch (e) {
-                console.error(`Import failed for ${file.name}:`, e);
-            }
-        }
-        await setMounted(year, true);
-    } catch (error) {
-        console.error(`Mount ${year} failed:`, error);
-    }
-    event.completed();
-}
-
-async function unmount(year, event) {
-    try {
-        const id = readState(year);
-        if (id) {
-            const token = await getToken();
-            await graph(`/me/mailFolders/${id}`, token, { method: "DELETE" });
-        }
-        writeState(year, null);
-        await setMounted(year, false);
-    } catch (error) {
-        console.error(`Unmount ${year} failed:`, error);
-    }
-    event.completed();
+async function callAgent(route, payload) {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), 20000);
+  try {
+    const resp = await fetch(`${PST_AGENT}${route}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload || {}),
+      signal: controller.signal
+    });
+    let data = {};
+    try { data = await resp.json(); } catch (_) {}
+    return { ok: resp.ok, status: resp.status, data };
+  } finally {
+    clearTimeout(t);
+  }
 }
 
 function openModop(event) {
-    window.open('https://dellasiegaexternal2.github.io/MesArchivesAddin/ModOp_Mes_ARCHIVES.pdf', '_blank');
-    event.completed({ allowEvent: true });
+  window.open("https://dellasiegaexternal2.github.io/MesArchivesAddin/ModOp_Mes_ARCHIVES.pdf", "_blank");
+  event.completed({ allowEvent: true });
 }
 
-["2021", "2022", "2023", "2024"].forEach((year) => {
-    Office.actions.associate(`mount${year}`, (event) => mount(year, event));
-    Office.actions.associate(`unmount${year}`, (event) => unmount(year, event));
+// 2021/2022/2023 : indisponibles
+["2021", "2022", "2023"].forEach((year) => {
+  Office.actions.associate(`mount${year}`, (event) => {
+    notifyInfo("pstMount", `${year} indisponible.`);
+    event.completed();
+  });
+  Office.actions.associate(`unmount${year}`, (event) => event.completed());
 });
+
+// 2024 => popup HTML (flip-flop rouge/vert) qui appelle l agent PST local
+const DIALOG_2024_URL = "https://dellasiegaps.github.io/MesArchivesAddin/src/commands/dialog2024.html";
+let dialog2024 = null;
+function open2024(event) {
+  try {
+    const state = readState("2024") === "mounted" ? "mounted" : "unmounted";
+    Office.context.ui.displayDialogAsync(`${DIALOG_2024_URL}?state=${state}`, { height: 40, width: 25 }, (res) => {
+      if (res.status !== Office.AsyncResultStatus.Succeeded) {
+        notifyInfo("pstMount", "Popup 2024 impossible : " + res.error.message);
+        return;
+      }
+      dialog2024 = res.value;
+      dialog2024.addEventHandler(Office.EventType.DialogMessageReceived, (arg) => {
+        writeState("2024", arg.message === "mounted" ? "mounted" : null);
+      });
+      dialog2024.addEventHandler(Office.EventType.DialogEventReceived, () => { dialog2024 = null; });
+    });
+  } catch (e) {
+    notifyInfo("pstMount", "Popup 2024 erreur : " + e.message);
+  }
+  event.completed(); // on rend la main tout de suite, sinon Outlook reste sur "travaille sur votre demande"
+}
+Office.actions.associate("open2024", open2024);
 Office.actions.associate("openModop", openModop);
+
