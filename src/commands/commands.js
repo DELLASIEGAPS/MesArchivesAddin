@@ -62,25 +62,26 @@ function openModop(event) {
 });
 
 // 2024 => popup HTML (flip-flop rouge/vert) qui appelle l agent PST local
+const DIALOG_2024_URL = "https://dellasiegaps.github.io/MesArchivesAddin/src/commands/dialog2024.html";
 let dialog2024 = null;
 function open2024(event) {
-  const state = readState("2024") === "mounted" ? "mounted" : "unmounted";
-  const url = `${location.origin}${location.pathname.replace(/[^/]*$/, "")}dialog2024.html?state=${state}`;
-  Office.context.ui.displayDialogAsync(url, { height: 40, width: 25, displayInIframe: false }, (res) => {
-    if (res.status !== Office.AsyncResultStatus.Succeeded) {
-      notifyInfo("pstMount", "Popup 2024 impossible : " + res.error.message);
-      event.completed();
-      return;
-    }
-    dialog2024 = res.value;
-    dialog2024.addEventHandler(Office.EventType.DialogMessageReceived, (arg) => {
-      writeState("2024", arg.message === "mounted" ? "mounted" : null);
+  try {
+    const state = readState("2024") === "mounted" ? "mounted" : "unmounted";
+    Office.context.ui.displayDialogAsync(`${DIALOG_2024_URL}?state=${state}`, { height: 40, width: 25 }, (res) => {
+      if (res.status !== Office.AsyncResultStatus.Succeeded) {
+        notifyInfo("pstMount", "Popup 2024 impossible : " + res.error.message);
+        return;
+      }
+      dialog2024 = res.value;
+      dialog2024.addEventHandler(Office.EventType.DialogMessageReceived, (arg) => {
+        writeState("2024", arg.message === "mounted" ? "mounted" : null);
+      });
+      dialog2024.addEventHandler(Office.EventType.DialogEventReceived, () => { dialog2024 = null; });
     });
-    dialog2024.addEventHandler(Office.EventType.DialogEventReceived, () => {
-      dialog2024 = null;
-    });
-    event.completed();
-  });
+  } catch (e) {
+    notifyInfo("pstMount", "Popup 2024 erreur : " + e.message);
+  }
+  event.completed(); // on rend la main tout de suite, sinon Outlook reste sur "travaille sur votre demande"
 }
 Office.actions.associate("open2024", open2024);
 Office.actions.associate("openModop", openModop);
