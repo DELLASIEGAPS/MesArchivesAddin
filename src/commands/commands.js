@@ -1,5 +1,3 @@
-Office.onReady(() => {});
-
 const TOGGLE_YEARS = ["2024"];
 const storageKey = (year) => `archive${year}`;
 
@@ -123,3 +121,5 @@ function openModop(event) {
 Office.actions.associate("mount2024", (event) => mountPst("2024", event));
 Office.actions.associate("unmount2024", (event) => unmountPst("2024", event));
 Office.actions.associate("openModop", openModop);
+
+Office.onReady(() => setMounted("2024", readState("2024") === "mounted"));
