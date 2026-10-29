@@ -35,6 +35,23 @@ async function setMounted(year, mounted) {
   } catch (e) {
     console.error("Ribbon update failed:", e);
   }
+  // Test show/hide : requestUpdate n'est documente que pour "enabled" dans Outlook ; essai isole.
+  try {
+    await Office.ribbon.requestUpdate({
+      tabs: [{
+        id: "TabDefault",
+        groups: [{
+          id: "MesArchivesGroup",
+          controls: [
+            { id: `archive${year}_mount`, visible: !mounted },
+            { id: `archive${year}_unmount`, visible: mounted }
+          ]
+        }]
+      }]
+    });
+  } catch (e) {
+    console.warn("Show/hide non supporte :", e);
+  }
 }
 
 function notifyInfo(key, message) {
