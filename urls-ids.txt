@@ -1,2 +1,210 @@
 URL PST ARCHIVES OUTLOOK TEST
 https://dscoie091-my.sharepoint.com/personal/primosylvestredellasiega-nkoume_dscoie091_onmicrosoft_com/Documents/Personnel/ADR.pst
+
+Oui. Tu peux commencer sans Copilot directement dans Power Automate.
+
+Vu ton objectif Mes Archives, voici le cheminement minimal et concret.
+
+Étape 1 - Installer Power Automate Desktop
+
+Vérifie qu'il est installé :
+
+PAD.Console.Host.exe
+
+
+ou dans Windows :
+
+Power Automate
+
+
+Tu dois voir :
+
+Power Automate Desktop
+
+Étape 2 - Créer un flux Desktop
+
+Clique :
+
+Power Automate Desktop
+
+↓
+
+Nouveau flux
+
+↓
+
+ADR_MesArchives_Detection
+
+Étape 3 - Variable PST
+
+Ajoute :
+
+Définir variable
+
+
+Nom :
+
+PstPath
+
+
+Valeur :
+
+C:\Users\I21166T\Personnel\Outlook\ADR.pst
+
+Étape 4 - Vérifier existence
+
+Action :
+
+Condition
+
+↓
+
+Le fichier existe
+
+
+Fichier :
+
+%PstPath%
+
+Étape 5 - Branche OUI
+
+Ajoute :
+
+Afficher message
+
+
+Titre :
+
+Archive détectée
+
+
+Texte :
+
+ADR.pst trouvé
+
+
+Puis :
+
+Définir variable
+
+ArchiveMounted
+
+↓
+
+True
+
+Étape 6 - Branche NON
+
+Ajoute :
+
+Afficher message
+
+
+Titre :
+
+Archive absente
+
+
+Texte :
+
+ADR.pst introuvable
+
+
+Puis :
+
+Définir variable
+
+ArchiveMounted
+
+↓
+
+False
+
+Étape 7 - Test
+
+Clique :
+
+▶ Exécuter
+
+
+Résultat :
+
+ADR.pst trouvé
+
+
+ou
+
+ADR.pst introuvable
+
+Étape 8 - Version PowerShell
+
+Ajoute l'action :
+
+Exécuter script PowerShell
+
+
+Code :
+
+$pst = "C:\Users\$env:USERNAME\Personnel\Outlook\ADR.pst"
+
+if(Test-Path $pst)
+{
+    Write-Output "MOUNTED"
+}
+else
+{
+    Write-Output "NOT_FOUND"
+}
+
+Étape 9 - Évolution future
+
+Une fois le test validé :
+
+Outlook Web Add-in
+        ↓
+Power Automate Cloud
+        ↓
+Power Automate Desktop
+        ↓
+Détection PST
+        ↓
+Retour JSON
+        ↓
+🔴 → 🟢
+
+Important pour ton erreur actuelle
+
+Les erreurs :
+
+config.edge.skype.com
+
+CHILL
+
+CORS
+
+403
+
+x-ms-mac-log-interval-ms
+
+
+ne sont PAS la cause du rejet de ton complément.
+
+La seule erreur qui compte est :
+
+uploadCustomApp
+
+500 Internal Server Error
+
+
+et elle concerne encore le manifeste ou sa validation côté Microsoft 365.
+
+Donc :
+
+✅ continue le POC Power Automate Desktop pour Mes Archives
+
+✅ et en parallèle lance :
+
+npx office-addin-manifest validate MesArchives_SPOT.xml --verbose
+
+
+C'est cette commande qui te donnera enfin la vraie erreur de manifeste.
