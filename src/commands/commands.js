@@ -42,19 +42,31 @@ function saveStates(states) {
   });
 }
 
-function setRibbonState(isMounted) {
-  Office.ribbon.requestUpdate({
+const YEARS = ["2021", "2022", "2023", "2024"];
+
+// Flip-flop : un seul bouton visible par année (rouge = monter, vert = démonter).
+async function setRibbonState(states) {
+  const build = (withVisible) => ({
     tabs: [{
       id: "TabDefault",
       groups: [{
         id: "MesArchivesGroup",
-        controls: [
-          { id: "archive2024_mount", enabled: !isMounted },
-          { id: "archive2024_unmount", enabled: isMounted }
-        ]
+        controls: YEARS.flatMap((year) => {
+          const m = states[year] === true;
+          return [
+            Object.assign({ id: `archive${year}_mount`, enabled: !m }, withVisible ? { visible: !m } : {}),
+            Object.assign({ id: `archive${year}_unmount`, enabled: m }, withVisible ? { visible: m } : {})
+          ];
+        })
       }]
     }]
   });
+  try {
+    await Office.ribbon.requestUpdate(build(true));
+  } catch (error) {
+    console.warn("Show/hide non supporté, repli sur enabled.", error);
+    await Office.ribbon.requestUpdate(build(false));
+  }
 }
 
 function notify(message) {
@@ -128,7 +140,22 @@ async function setArchiveMounted(year, mounted) {
   const states = readStates();
   states[year] = mounted;
   await saveStates(states);
-  if (year === "2024") setRibbonState(mounted);
+  await setRibbonState(states);
+}
+
+// Lit l'état réel (PST présent et monté) ; retourne null si la source est injoignable.
+async function detectState(year) {
+  try {
+    if (isDesktopOutlook()) {
+      const data = await callAgent("/state", ARCHIVE_CONFIG[year].fileName);
+      return data.exists === true && data.mounted === true;
+    }
+    const status = await getWebArchiveStatus(year);
+    return status.fileExists === true && status.mounted === true;
+  } catch (error) {
+    console.warn(`État ${year} non détectable.`, error);
+    return null;
+  }
 }
 
 function isDesktopOutlook() {
@@ -164,15 +191,20 @@ async function runArchiveAction(year, mounted, event) {
 
 Office.onReady(async () => {
   const states = readStates();
-  if (typeof states["2024"] !== "boolean") {
-    states["2024"] = false;
-    await saveStates(states);
-  }
-  setRibbonState(states["2024"]);
+  YEARS.forEach((year) => { if (typeof states[year] !== "boolean") states[year] = false; });
+  await saveStates(states);
+  await setRibbonState(states);
 
-  ["2021", "2022", "2023"].forEach((year) => {
+  YEARS.forEach((year) => {
     Office.actions.associate(`mount${year}`, (event) => runArchiveAction(year, true, event));
+    Office.actions.associate(`unmount${year}`, (event) => runArchiveAction(year, false, event));
   });
-  Office.actions.associate("mount2024", (event) => runArchiveAction("2024", true, event));
-  Office.actions.associate("unmount2024", (event) => runArchiveAction("2024", false, event));
+
+  // Synchronise les boutons avec la présence réelle du PST.
+  for (const year of YEARS) {
+    const real = await detectState(year);
+    if (real !== null) states[year] = real;
+  }
+  await saveStates(states);
+  await setRibbonState(states);
 });
