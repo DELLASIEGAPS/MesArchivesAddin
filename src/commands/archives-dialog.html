@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mes Archives BdF</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
+  <script src="../archives-config.js"></script>
+  <style>
+    body { font-family: "Segoe UI", sans-serif; margin: 0; padding: 16px; background: #fafafa; }
+    h2 { margin: 0 0 4px; font-size: 18px; }
+    .sub { font-size: 12px; color: #666; margin-bottom: 12px; }
+    .row { display: flex; align-items: center; gap: 12px; background: #fff; border: 1px solid #ddd;
+           border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+    .dot { width: 14px; height: 14px; border-radius: 50%; background: #c62828; flex: none; }
+    .row.on .dot { background: #2e7d32; }
+    .info { flex: 1; }
+    .year { font-weight: 600; }
+    .state { font-size: 12px; color: #555; }
+    .detail { font-size: 11px; color: #888; }
+    button { min-width: 96px; padding: 8px 12px; border: 0; border-radius: 4px; color: #fff; cursor: pointer;
+             font-size: 13px; font-weight: 600; background: #c62828; }
+    .row.on button { background: #2e7d32; }
+    button:disabled { opacity: .5; cursor: wait; }
+    #msg { min-height: 18px; margin-top: 8px; font-size: 12px; color: #b26a00; }
+    .footer { margin-top: 12px; display: flex; justify-content: space-between; }
+    .footer button { background: #555; min-width: 0; }
+  </style>
+</head>
+<body>
+  <h2>Mes Archives BdF</h2>
+  <div class="sub">Rouge = indisponible (PST non monté) · Vert = disponible (PST monté dans Outlook)</div>
+  <div id="list"></div>
+  <div id="msg"></div>
+  <div class="footer">
+    <button id="refresh" type="button">Actualiser</button>
+    <button id="close" type="button">Fermer</button>
+  </div>
+  <script>
+    const PST_AGENT = "http://127.0.0.1:45731";
+    const CONFIG = window.MES_ARCHIVES_CONFIG || {};
+    const ARCHIVES = { "2021": "2021.pst", "2022": "2022.pst", "2023": "2023.pst", "2024": "ADR.pst" };
+    const states = {};
+    const details = {};
+    const busy = {};
+    const listEl = document.getElementById("list");
+    const msgEl = document.getElementById("msg");
+
+    const isWeb = () => Office.context.platform === Office.PlatformType.OfficeOnline;
+
+    function render() {
+      listEl.textContent = "";
+      Object.keys(ARCHIVES).forEach((year) => {
+        const on = states[year] === true;
+        const row = document.createElement("div");
+        row.className = "row" + (on ? " on" : "");
+        const dot = document.createElement("div");
+        dot.className = "dot";
+        const info = document.createElement("div");
+        info.className = "info";
+        const y = document.createElement("div");
+        y.className = "year";
+        y.textContent = year + " - " + ARCHIVES[year];
+        const s = document.createElement("div");
+        s.className = "state";
+        s.textContent = on ? "Disponible (monté)" : "Indisponible (non monté)";
+        const d = document.createElement("div");
+        d.className = "detail";
+        d.textContent = details[year] || "";
+        info.append(y, s, d);
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.disabled = busy[year] === true;
+        btn.textContent = on ? "Décharger" : "Charger";
+        btn.addEventListener("click", () => toggle(year));
+        row.append(dot, info, btn);
+        listEl.appendChild(row);
+      });
+    }
+
+    function webUrl(year) {
+      if (!CONFIG.webStatusEndpoint) throw new Error("Point d'accès Power Automate non configuré.");
+      const url = new URL(CONFIG.webStatusEndpoint);
+      if (url.protocol !== "https:") throw new Error("Le point d'accès doit utiliser HTTPS.");
+      if (year) url.searchParams.set("year", year);
+      return url;
+    }
+
+    async function agent(route, year) {
+      const resp = await fetch(PST_AGENT + route, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileName: ARCHIVES[year] }),
+        signal: AbortSignal.timeout(20000)
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || data.ok === false) throw new Error(data.error || "Agent PST : HTTP " + resp.status);
+      return data;
+    }
+
+    async function readState(year) {
+      if (isWeb()) {
+        const r = await fetch(webUrl(year));
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        const d = await r.json();
+        return { exists: d.fileExists === true, mounted: d.fileExists === true && d.mounted === true };
+      }
+      const d = await agent("/state", year);
+      return { exists: d.exists === true, mounted: d.exists === true && d.mounted === true };
+    }
+
+    async function refresh() {
+      msgEl.textContent = "";
+      for (const year of Object.keys(ARCHIVES)) {
+        try {
+          const st = await readState(year);
+          states[year] = st.mounted;
+          details[year] = st.exists ? "PST présent" : "PST introuvable";
+        } catch (e) {
+          details[year] = "État illisible : " + e.message;
+        }
+      }
+      render();
+      Office.context.ui.messageParent(JSON.stringify({ type: "states", states }));
+    }
+
+    async function toggle(year) {
+      const target = !(states[year] === true);
+      busy[year] = true;
+      msgEl.textContent = "";
+      render();
+      try {
+        if (isWeb()) {
+          const url = webUrl();
+          const r = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ annee: Number(year), Monte: target, Couleur: target ? "Vert" : "Rouge" })
+          });
+          if (!r.ok) throw new Error("HTTP " + r.status);
+        } else {
+          await agent(target ? "/mount-pst" : "/unmount-pst", year);
+        }
+        states[year] = target;
+        details[year] = target ? "Monté dans Outlook" : "Démonté";
+        Office.context.ui.messageParent(JSON.stringify({ type: "states", states }));
+      } catch (e) {
+        msgEl.textContent = year + " : " + (e.name === "TypeError" ? "agent PST local injoignable (127.0.0.1:45731)." : e.message);
+      }
+      busy[year] = false;
+      render();
+    }
+
+    document.getElementById("refresh").addEventListener("click", refresh);
+    document.getElementById("close").addEventListener("click", () => Office.context.ui.messageParent(JSON.stringify({ type: "close" })));
+    Office.onReady(() => { render(); refresh(); });
+  </script>
+</body>
+</html>
