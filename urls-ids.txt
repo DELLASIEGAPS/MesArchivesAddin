@@ -208,3 +208,75 @@ npx office-addin-manifest validate MesArchives_SPOT.xml --verbose
 
 
 C'est cette commande qui te donnera enfin la vraie erreur de manifeste.
+
+
+
+OneDrive simplifié: https://dscoie091-my.sharepoint.com/personal/primosylvestredellasiega-nkoume_dscoie091_onmicrosoft_com/Documents/Personnel/ADR.pst
+connexion Microsoft 
+PrimoSylvestreDELLASIEGA-NKOUME@dscoie091.onmicrosoft.com
+
+
+
+ANEF
+9921078906
+R@ussir20XX@@@@
+
+Gmail
+
+
+Wise Pro account RE'SPOND'S Tech & Invest
+support@dsdata.biz
+R@ussir20XX
+
+ZenBusiness
+primo.dellasiega@icloud.com
+Réussir20@@
+
+
+iSupplier
+primo.dellasiega@icloud.com
+R@ussir20XX
+ot1 & 2:pbT9t9GsxBk5>2x4
+
+SRV Bureau Distant:
+- wddv097aba888ov.adbdfint.private
+
+GitHub
+Primo.DELLASIEGA.external2@test-banque-france.fr
+Réussir2026@VSTO
+
+support@dsdata.biz
+R@ussir20@@
+
+
+
+--
+Beeline
+edellasiegankoume724@gmail.com
+
+Réussir2025@Grandir
+---------------------
+commande Nginx:
+deb http://nginx.org/packages/debian/ jessie Nginx
+deb: indique à apt qu'il s'agit d'un dépôt conetnat des Paquets binaires déjà compilés.
+Autrement dit je veux installer des programmes prêts à l'emploi
+
+URL: http://nginx.org/packages/debian/
+Jessie nom de la version de Debian
+deb http://nginx.org/packages/debian/ jessie nginx
+Afficher plus de lignes
+
+signifie :
+
+Télécharge les paquets binaires Nginx depuis le dépôt officiel Nginx pour Debian Jessie.
+Signification de deb-src
+
+Contrairement à :
+deb
+
+qui fournit les binaires,
+
+deb-src
+fournit :
+
+les sources du programme
