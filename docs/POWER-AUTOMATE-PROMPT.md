@@ -24,3 +24,8 @@
 
 ## Après création
 Copier l'URL HTTPS du flux dans `src/archives-config.js` → `webStatusEndpoint`.
+
+## Comportement des boutons (v2.0.8.0)
+Chaque année a deux boutons : `archiveAAAA_mount` (rouge, « Indisponible ») et `archiveAAAA_unmount` (vert, « Disponible »).
+Un seul est visible à la fois (repli sur activé/désactivé si Outlook refuse `visible`).
+Au démarrage, l'état est lu depuis la présence réelle du PST : agent `/state` (bureau) ou GET du flux (Web).

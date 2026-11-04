@@ -64,6 +64,17 @@ function Unmount-Pst([string]$pstPath) {
   return @{ ok = $true; alreadyUnmounted = $true; path = $pstPath }
 }
 
+function Get-PstState([string]$fileName) {
+  $pstPath = Find-PstFile $fileName
+  if (-not $pstPath) { return @{ ok = $true; exists = $false; mounted = $false; fileName = $fileName } }
+  $outlook = New-Object -ComObject Outlook.Application
+  $mounted = $false
+  foreach ($store in $outlook.GetNamespace("MAPI").Stores) {
+    try { if ($store.FilePath -and ($store.FilePath -ieq $pstPath)) { $mounted = $true; break } } catch {}
+  }
+  return @{ ok = $true; exists = $true; mounted = $mounted; path = $pstPath }
+}
+
 $listener = [System.Net.HttpListener]::new()
 $listener.Prefixes.Add($ListenPrefix)
 $listener.Start()
@@ -95,6 +106,7 @@ while ($listener.IsListening) {
         if (-not $pstPath) { Write-Json $res 404 @{ ok = $false; code = "PST_NOT_FOUND"; error = "PST not found locally"; fileName = $fileName }; continue }
         Write-Json $res 200 (Unmount-Pst $pstPath)
       }
+      "/state" { Write-Json $res 200 (Get-PstState ([string]$body.fileName)) }
       "/status" { Write-Json $res 200 @{ ok = $true; running = $true; roots = @(Get-OneDriveRoots) } }
       default { Write-Json $res 404 @{ ok = $false; error = "Route not found" } }
     }
