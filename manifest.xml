@@ -27,7 +27,7 @@
   <Id>014352da-084d-44ca-9589-65f15fe9af4e</Id>
 
   <!-- Numero de version. A augmenter a chaque nouvelle livraison (ex : 2.0.7.0). -->
-  <Version>2.0.8.0</Version>
+  <Version>2.0.9.0</Version>
 
   <!-- Nom de l'editeur -->
   <ProviderName>MesArchives_SPOT</ProviderName>
@@ -101,53 +101,11 @@
             <OfficeTab id="TabDefault">
               <Group id="MesArchivesGroup">
                 <Label resid="GroupLabel"/>
-                <Control xsi:type="Button" id="archive2021_mount">
-                  <Label resid="archive2021LabelRed"/>
-                  <Supertip><Title resid="archive2021LabelRed"/><Description resid="archive2021DescRed"/></Supertip>
-                  <Icon><bt:Image size="16" resid="IconRed.16"/><bt:Image size="32" resid="IconRed.32"/><bt:Image size="80" resid="IconRed.80"/></Icon>
-                  <Action xsi:type="ExecuteFunction"><FunctionName>mount2021</FunctionName></Action>
-                </Control>
-                <Control xsi:type="Button" id="archive2021_unmount">
-                  <Label resid="archive2021LabelGreen"/>
-                  <Supertip><Title resid="archive2021LabelGreen"/><Description resid="archive2021DescGreen"/></Supertip>
-                  <Icon><bt:Image size="16" resid="IconGreen.16"/><bt:Image size="32" resid="IconGreen.32"/><bt:Image size="80" resid="IconGreen.80"/></Icon>
-                  <Action xsi:type="ExecuteFunction"><FunctionName>unmount2021</FunctionName></Action>
-                </Control>
-                <Control xsi:type="Button" id="archive2022_mount">
-                  <Label resid="archive2022LabelRed"/>
-                  <Supertip><Title resid="archive2022LabelRed"/><Description resid="archive2022DescRed"/></Supertip>
-                  <Icon><bt:Image size="16" resid="IconRed.16"/><bt:Image size="32" resid="IconRed.32"/><bt:Image size="80" resid="IconRed.80"/></Icon>
-                  <Action xsi:type="ExecuteFunction"><FunctionName>mount2022</FunctionName></Action>
-                </Control>
-                <Control xsi:type="Button" id="archive2022_unmount">
-                  <Label resid="archive2022LabelGreen"/>
-                  <Supertip><Title resid="archive2022LabelGreen"/><Description resid="archive2022DescGreen"/></Supertip>
-                  <Icon><bt:Image size="16" resid="IconGreen.16"/><bt:Image size="32" resid="IconGreen.32"/><bt:Image size="80" resid="IconGreen.80"/></Icon>
-                  <Action xsi:type="ExecuteFunction"><FunctionName>unmount2022</FunctionName></Action>
-                </Control>
-                <Control xsi:type="Button" id="archive2023_mount">
-                  <Label resid="archive2023LabelRed"/>
-                  <Supertip><Title resid="archive2023LabelRed"/><Description resid="archive2023DescRed"/></Supertip>
-                  <Icon><bt:Image size="16" resid="IconRed.16"/><bt:Image size="32" resid="IconRed.32"/><bt:Image size="80" resid="IconRed.80"/></Icon>
-                  <Action xsi:type="ExecuteFunction"><FunctionName>mount2023</FunctionName></Action>
-                </Control>
-                <Control xsi:type="Button" id="archive2023_unmount">
-                  <Label resid="archive2023LabelGreen"/>
-                  <Supertip><Title resid="archive2023LabelGreen"/><Description resid="archive2023DescGreen"/></Supertip>
-                  <Icon><bt:Image size="16" resid="IconGreen.16"/><bt:Image size="32" resid="IconGreen.32"/><bt:Image size="80" resid="IconGreen.80"/></Icon>
-                  <Action xsi:type="ExecuteFunction"><FunctionName>unmount2023</FunctionName></Action>
-                </Control>
-                <Control xsi:type="Button" id="archive2024_mount">
-                  <Label resid="archive2024LabelRed"/>
-                  <Supertip><Title resid="archive2024LabelRed"/><Description resid="archive2024DescRed"/></Supertip>
-                  <Icon><bt:Image size="16" resid="IconRed.16"/><bt:Image size="32" resid="IconRed.32"/><bt:Image size="80" resid="IconRed.80"/></Icon>
-                  <Action xsi:type="ExecuteFunction"><FunctionName>mount2024</FunctionName></Action>
-                </Control>
-                <Control xsi:type="Button" id="archive2024_unmount">
-                  <Label resid="archive2024LabelGreen"/>
-                  <Supertip><Title resid="archive2024LabelGreen"/><Description resid="archive2024DescGreen"/></Supertip>
-                  <Icon><bt:Image size="16" resid="IconGreen.16"/><bt:Image size="32" resid="IconGreen.32"/><bt:Image size="80" resid="IconGreen.80"/></Icon>
-                  <Action xsi:type="ExecuteFunction"><FunctionName>unmount2024</FunctionName></Action>
+                <Control xsi:type="Button" id="openArchives">
+                  <Label resid="archivesLabel"/>
+                  <Supertip><Title resid="archivesLabel"/><Description resid="archivesDesc"/></Supertip>
+                  <Icon><bt:Image size="16" resid="IconVSTO.16"/><bt:Image size="32" resid="IconVSTO.32"/><bt:Image size="80" resid="IconVSTO.80"/></Icon>
+                  <Action xsi:type="ExecuteFunction"><FunctionName>openArchives</FunctionName></Action>
                 </Control>
                 <Control xsi:type="Button" id="aboutSPOT">
                   <Label resid="aboutLabel"/>
@@ -181,25 +139,11 @@
       </bt:Urls>
       <bt:ShortStrings>
         <bt:String id="GroupLabel" DefaultValue="Mes Archives BdF"/>
-        <bt:String id="archive2021LabelRed" DefaultValue="2021 - Indisponible"/>
-        <bt:String id="archive2021LabelGreen" DefaultValue="2021 - Disponible"/>
-        <bt:String id="archive2021DescRed" DefaultValue="2021 - Rouge : PST non monté. Clic = monter le PST dans Outlook"/>
-        <bt:String id="archive2021DescGreen" DefaultValue="2021 - Vert : PST monté. Clic = démonter le PST"/>
-        <bt:String id="archive2022LabelRed" DefaultValue="2022 - Indisponible"/>
-        <bt:String id="archive2022LabelGreen" DefaultValue="2022 - Disponible"/>
-        <bt:String id="archive2022DescRed" DefaultValue="2022 - Rouge : PST non monté. Clic = monter le PST dans Outlook"/>
-        <bt:String id="archive2022DescGreen" DefaultValue="2022 - Vert : PST monté. Clic = démonter le PST"/>
-        <bt:String id="archive2023LabelRed" DefaultValue="2023 - Indisponible"/>
-        <bt:String id="archive2023LabelGreen" DefaultValue="2023 - Disponible"/>
-        <bt:String id="archive2023DescRed" DefaultValue="2023 - Rouge : PST non monté. Clic = monter le PST dans Outlook"/>
-        <bt:String id="archive2023DescGreen" DefaultValue="2023 - Vert : PST monté. Clic = démonter le PST"/>
-        <bt:String id="archive2024LabelRed" DefaultValue="2024 - Indisponible"/>
-        <bt:String id="archive2024LabelGreen" DefaultValue="2024 - Disponible"/>
-        <bt:String id="archive2024DescRed" DefaultValue="2024 - Rouge : PST non monté. Clic = monter le PST dans Outlook"/>
-        <bt:String id="archive2024DescGreen" DefaultValue="2024 - Vert : PST monté. Clic = démonter le PST"/>
+        <bt:String id="archivesLabel" DefaultValue="Mes Archives"/>
         <bt:String id="aboutLabel" DefaultValue="SPOT"/>
       </bt:ShortStrings>
       <bt:LongStrings>
+        <bt:String id="archivesDesc" DefaultValue="Ouvrir le popup Mes Archives : charger/décharger les PST 2021-2024 (rouge = indisponible, vert = disponible)"/>
         <bt:String id="aboutDesc" DefaultValue="SPOT - Ouvrir le volet Mes Archives"/>
       </bt:LongStrings>
     </Resources>
@@ -231,64 +175,16 @@
                 <Group id="MesArchivesGroup">
                   <Label resid="GroupLabel"/>
 
-                  <!-- Bouton 2021 (rouge) : appelle la fonction mount2021 -->
 
-                  <!-- Bouton 2022 (rouge) : appelle la fonction mount2022 -->
 
-                  <!-- Bouton 2023 (rouge) : appelle la fonction mount2023 -->
 
-                  <!-- Bouton 2024 ROUGE : un clic charge le PST local, puis il passe au vert -->
-
-                  <!-- Bouton 2024 VERT : un clic decharge le PST, puis il repasse au rouge -->
 
                   <!-- Bouton "SPOT" : ouvre le volet d'information (taskpane) -->
-                  <Control xsi:type="Button" id="archive2021_mount">
-                    <Label resid="archive2021LabelRed"/>
-                    <Supertip><Title resid="archive2021LabelRed"/><Description resid="archive2021DescRed"/></Supertip>
-                    <Icon><bt:Image size="16" resid="IconRed.16"/><bt:Image size="32" resid="IconRed.32"/><bt:Image size="80" resid="IconRed.80"/></Icon>
-                    <Action xsi:type="ExecuteFunction"><FunctionName>mount2021</FunctionName></Action>
-                  </Control>
-                  <Control xsi:type="Button" id="archive2021_unmount">
-                    <Label resid="archive2021LabelGreen"/>
-                    <Supertip><Title resid="archive2021LabelGreen"/><Description resid="archive2021DescGreen"/></Supertip>
-                    <Icon><bt:Image size="16" resid="IconGreen.16"/><bt:Image size="32" resid="IconGreen.32"/><bt:Image size="80" resid="IconGreen.80"/></Icon>
-                    <Action xsi:type="ExecuteFunction"><FunctionName>unmount2021</FunctionName></Action>
-                  </Control>
-                  <Control xsi:type="Button" id="archive2022_mount">
-                    <Label resid="archive2022LabelRed"/>
-                    <Supertip><Title resid="archive2022LabelRed"/><Description resid="archive2022DescRed"/></Supertip>
-                    <Icon><bt:Image size="16" resid="IconRed.16"/><bt:Image size="32" resid="IconRed.32"/><bt:Image size="80" resid="IconRed.80"/></Icon>
-                    <Action xsi:type="ExecuteFunction"><FunctionName>mount2022</FunctionName></Action>
-                  </Control>
-                  <Control xsi:type="Button" id="archive2022_unmount">
-                    <Label resid="archive2022LabelGreen"/>
-                    <Supertip><Title resid="archive2022LabelGreen"/><Description resid="archive2022DescGreen"/></Supertip>
-                    <Icon><bt:Image size="16" resid="IconGreen.16"/><bt:Image size="32" resid="IconGreen.32"/><bt:Image size="80" resid="IconGreen.80"/></Icon>
-                    <Action xsi:type="ExecuteFunction"><FunctionName>unmount2022</FunctionName></Action>
-                  </Control>
-                  <Control xsi:type="Button" id="archive2023_mount">
-                    <Label resid="archive2023LabelRed"/>
-                    <Supertip><Title resid="archive2023LabelRed"/><Description resid="archive2023DescRed"/></Supertip>
-                    <Icon><bt:Image size="16" resid="IconRed.16"/><bt:Image size="32" resid="IconRed.32"/><bt:Image size="80" resid="IconRed.80"/></Icon>
-                    <Action xsi:type="ExecuteFunction"><FunctionName>mount2023</FunctionName></Action>
-                  </Control>
-                  <Control xsi:type="Button" id="archive2023_unmount">
-                    <Label resid="archive2023LabelGreen"/>
-                    <Supertip><Title resid="archive2023LabelGreen"/><Description resid="archive2023DescGreen"/></Supertip>
-                    <Icon><bt:Image size="16" resid="IconGreen.16"/><bt:Image size="32" resid="IconGreen.32"/><bt:Image size="80" resid="IconGreen.80"/></Icon>
-                    <Action xsi:type="ExecuteFunction"><FunctionName>unmount2023</FunctionName></Action>
-                  </Control>
-                  <Control xsi:type="Button" id="archive2024_mount">
-                    <Label resid="archive2024LabelRed"/>
-                    <Supertip><Title resid="archive2024LabelRed"/><Description resid="archive2024DescRed"/></Supertip>
-                    <Icon><bt:Image size="16" resid="IconRed.16"/><bt:Image size="32" resid="IconRed.32"/><bt:Image size="80" resid="IconRed.80"/></Icon>
-                    <Action xsi:type="ExecuteFunction"><FunctionName>mount2024</FunctionName></Action>
-                  </Control>
-                  <Control xsi:type="Button" id="archive2024_unmount">
-                    <Label resid="archive2024LabelGreen"/>
-                    <Supertip><Title resid="archive2024LabelGreen"/><Description resid="archive2024DescGreen"/></Supertip>
-                    <Icon><bt:Image size="16" resid="IconGreen.16"/><bt:Image size="32" resid="IconGreen.32"/><bt:Image size="80" resid="IconGreen.80"/></Icon>
-                    <Action xsi:type="ExecuteFunction"><FunctionName>unmount2024</FunctionName></Action>
+                  <Control xsi:type="Button" id="openArchives">
+                    <Label resid="archivesLabel"/>
+                    <Supertip><Title resid="archivesLabel"/><Description resid="archivesDesc"/></Supertip>
+                    <Icon><bt:Image size="16" resid="IconVSTO.16"/><bt:Image size="32" resid="IconVSTO.32"/><bt:Image size="80" resid="IconVSTO.80"/></Icon>
+                    <Action xsi:type="ExecuteFunction"><FunctionName>openArchives</FunctionName></Action>
                   </Control>
                   <Control xsi:type="Button" id="aboutSPOT">
                     <Label resid="aboutLabel"/><Supertip><Title resid="aboutLabel"/><Description resid="aboutDesc"/></Supertip>
@@ -326,26 +222,12 @@
         <!-- Textes courts : noms des boutons -->
         <bt:ShortStrings>
           <bt:String id="GroupLabel" DefaultValue="Mes Archives BdF"/>
-          <bt:String id="archive2021LabelRed" DefaultValue="2021 - Indisponible"/>
-          <bt:String id="archive2021LabelGreen" DefaultValue="2021 - Disponible"/>
-          <bt:String id="archive2021DescRed" DefaultValue="2021 - Rouge : PST non monté. Clic = monter le PST dans Outlook"/>
-          <bt:String id="archive2021DescGreen" DefaultValue="2021 - Vert : PST monté. Clic = démonter le PST"/>
-          <bt:String id="archive2022LabelRed" DefaultValue="2022 - Indisponible"/>
-          <bt:String id="archive2022LabelGreen" DefaultValue="2022 - Disponible"/>
-          <bt:String id="archive2022DescRed" DefaultValue="2022 - Rouge : PST non monté. Clic = monter le PST dans Outlook"/>
-          <bt:String id="archive2022DescGreen" DefaultValue="2022 - Vert : PST monté. Clic = démonter le PST"/>
-          <bt:String id="archive2023LabelRed" DefaultValue="2023 - Indisponible"/>
-          <bt:String id="archive2023LabelGreen" DefaultValue="2023 - Disponible"/>
-          <bt:String id="archive2023DescRed" DefaultValue="2023 - Rouge : PST non monté. Clic = monter le PST dans Outlook"/>
-          <bt:String id="archive2023DescGreen" DefaultValue="2023 - Vert : PST monté. Clic = démonter le PST"/>
-          <bt:String id="archive2024LabelRed" DefaultValue="2024 - Indisponible"/>
-          <bt:String id="archive2024LabelGreen" DefaultValue="2024 - Disponible"/>
-          <bt:String id="archive2024DescRed" DefaultValue="2024 - Rouge : PST non monté. Clic = monter le PST dans Outlook"/>
-          <bt:String id="archive2024DescGreen" DefaultValue="2024 - Vert : PST monté. Clic = démonter le PST"/>
-          <bt:String id="aboutLabel" DefaultValue="SPOT"/>
+          <bt:String id="archivesLabel" DefaultValue="Mes Archives"/>
+        <bt:String id="aboutLabel" DefaultValue="SPOT"/>
         </bt:ShortStrings>
         <!-- Textes longs : infobulles au survol des boutons -->
         <bt:LongStrings>
+        <bt:String id="archivesDesc" DefaultValue="Ouvrir le popup Mes Archives : charger/décharger les PST 2021-2024 (rouge = indisponible, vert = disponible)"/>
           <bt:String id="aboutDesc" DefaultValue="SPOT - Mes Archives - Toggle Rouge/Vert PST local"/>
         </bt:LongStrings>
       </Resources>
