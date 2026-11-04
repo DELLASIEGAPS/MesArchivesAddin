@@ -28,18 +28,17 @@
   </style>
 </head>
 <body>
-  <h2>Mes Archives BdF</h2>
+  <h2>Mes Archives</h2>
   <div class="sub">Rouge = indisponible (PST non monté) · Vert = disponible (PST monté dans Outlook)</div>
   <div id="list"></div>
   <div id="msg"></div>
   <div class="footer">
-    <button id="refresh" type="button">Actualiser</button>
     <button id="close" type="button">Fermer</button>
   </div>
   <script>
     const PST_AGENT = "http://127.0.0.1:45731";
     const CONFIG = window.MES_ARCHIVES_CONFIG || {};
-    const ARCHIVES = { "2021": "2021.pst", "2022": "2022.pst", "2023": "2023.pst", "2024": "ADR.pst" };
+    const ARCHIVES = { "2024": "ADR.pst" };
     const states = {};
     const details = {};
     const busy = {};
@@ -90,7 +89,7 @@
       const resp = await fetch(PST_AGENT + route, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileName: ARCHIVES[year] }),
+        body: JSON.stringify({ fileName: ARCHIVES[year], sharePointPath: CONFIG.pstUrls && CONFIG.pstUrls[year] }),
         signal: AbortSignal.timeout(20000)
       });
       const data = await resp.json().catch(() => ({}));
@@ -151,7 +150,6 @@
       render();
     }
 
-    document.getElementById("refresh").addEventListener("click", refresh);
     document.getElementById("close").addEventListener("click", () => Office.context.ui.messageParent(JSON.stringify({ type: "close" })));
     Office.onReady(() => { render(); refresh(); });
   </script>

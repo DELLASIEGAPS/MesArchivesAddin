@@ -107,12 +107,6 @@
                   <Icon><bt:Image size="16" resid="IconVSTO.16"/><bt:Image size="32" resid="IconVSTO.32"/><bt:Image size="80" resid="IconVSTO.80"/></Icon>
                   <Action xsi:type="ExecuteFunction"><FunctionName>openArchives</FunctionName></Action>
                 </Control>
-                <Control xsi:type="Button" id="aboutSPOT">
-                  <Label resid="aboutLabel"/>
-                  <Supertip><Title resid="aboutLabel"/><Description resid="aboutDesc"/></Supertip>
-                  <Icon><bt:Image size="16" resid="IconVSTO.16"/><bt:Image size="32" resid="IconVSTO.32"/><bt:Image size="80" resid="IconVSTO.80"/></Icon>
-                  <Action xsi:type="ShowTaskpane"><SourceLocation resid="Taskpane.Url"/></Action>
-                </Control>
               </Group>
             </OfficeTab>
           </ExtensionPoint>
@@ -140,11 +134,9 @@
       <bt:ShortStrings>
         <bt:String id="GroupLabel" DefaultValue="Mes Archives BdF"/>
         <bt:String id="archivesLabel" DefaultValue="Mes Archives"/>
-        <bt:String id="aboutLabel" DefaultValue="SPOT"/>
       </bt:ShortStrings>
       <bt:LongStrings>
         <bt:String id="archivesDesc" DefaultValue="Ouvrir le popup Mes Archives : charger/décharger les PST 2021-2024 (rouge = indisponible, vert = disponible)"/>
-        <bt:String id="aboutDesc" DefaultValue="SPOT - Ouvrir le volet Mes Archives"/>
       </bt:LongStrings>
     </Resources>
 
@@ -186,11 +178,6 @@
                     <Icon><bt:Image size="16" resid="IconVSTO.16"/><bt:Image size="32" resid="IconVSTO.32"/><bt:Image size="80" resid="IconVSTO.80"/></Icon>
                     <Action xsi:type="ExecuteFunction"><FunctionName>openArchives</FunctionName></Action>
                   </Control>
-                  <Control xsi:type="Button" id="aboutSPOT">
-                    <Label resid="aboutLabel"/><Supertip><Title resid="aboutLabel"/><Description resid="aboutDesc"/></Supertip>
-                    <Icon><bt:Image size="16" resid="IconVSTO.16"/><bt:Image size="32" resid="IconVSTO.32"/><bt:Image size="80" resid="IconVSTO.80"/></Icon>
-                    <Action xsi:type="ShowTaskpane"><SourceLocation resid="Taskpane.Url"/></Action>
-                  </Control>
 
                 </Group>
               </OfficeTab>
@@ -223,12 +210,10 @@
         <bt:ShortStrings>
           <bt:String id="GroupLabel" DefaultValue="Mes Archives BdF"/>
           <bt:String id="archivesLabel" DefaultValue="Mes Archives"/>
-        <bt:String id="aboutLabel" DefaultValue="SPOT"/>
         </bt:ShortStrings>
         <!-- Textes longs : infobulles au survol des boutons -->
         <bt:LongStrings>
         <bt:String id="archivesDesc" DefaultValue="Ouvrir le popup Mes Archives : charger/décharger les PST 2021-2024 (rouge = indisponible, vert = disponible)"/>
-          <bt:String id="aboutDesc" DefaultValue="SPOT - Mes Archives - Toggle Rouge/Vert PST local"/>
         </bt:LongStrings>
       </Resources>
 
