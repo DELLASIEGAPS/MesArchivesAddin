@@ -30,7 +30,7 @@ function openArchives(event) {
   }
   Office.context.ui.displayDialogAsync(
     DIALOG_URL,
-    { height: 60, width: 30, displayInIframe: false, promptBeforeOpen: false },
+    { height: 50, width: 45, displayInIframe: false, promptBeforeOpen: false },
     (result) => {
       if (result.status === Office.AsyncResultStatus.Succeeded) {
         dialog = result.value;
