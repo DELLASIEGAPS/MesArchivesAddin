@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mes Archives BdF</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
+  <script src="../archives-config.js"></script>
+  <style>
+    body { font-family: "Segoe UI", sans-serif; margin: 0; padding: 16px; background: #fafafa; }
+    h2 { margin: 0 0 4px; font-size: 18px; }
+    .sub { font-size: 12px; color: #666; margin-bottom: 14px; }
+    #list { display: flex; gap: 10px; }
+    .tile { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; background: #fff;
+            border: 2px solid #c62828; border-radius: 8px; padding: 12px 6px; text-align: center; }
+    .tile.on { border-color: #2e7d32; }
+    .tile img { width: 48px; height: 48px; }
+    .year { font-weight: 600; font-size: 15px; }
+    .state { font-size: 12px; font-weight: 600; color: #c62828; }
+    .tile.on .state { color: #2e7d32; }
+    .detail { font-size: 11px; color: #888; min-height: 28px; }
+    button { width: 100%; padding: 7px 4px; border: 0; border-radius: 4px; color: #fff; cursor: pointer;
+             font-size: 12px; font-weight: 600; background: #c62828; }
+    .tile.on button { background: #2e7d32; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    #msg { min-height: 18px; margin-top: 10px; font-size: 12px; color: #b26a00; }
+    .footer { margin-top: 12px; display: flex; justify-content: space-between; }
+    .footer button { width: auto; min-width: 80px; padding: 7px 12px; background: #555; }
+  </style>
+</head>
+<body>
+  <h2>Mes Archives</h2>
+  <div class="sub">Rouge = indisponible (PST non monté) · Vert = disponible (PST monté dans Outlook)</div>
+  <div id="list"></div>
+  <div id="msg"></div>
+  <div class="footer">
+    <button id="modop" type="button">Modop</button>
+    <button id="close" type="button">Fermer</button>
+  </div>
+  <script>
+    const PST_AGENT = "http://127.0.0.1:45731";
+    const CONFIG = window.MES_ARCHIVES_CONFIG || {};
+    const ARCHIVES = { "2021": "2021.pst", "2022": "2022.pst", "2023": "2023.pst", "2024": "ADR.pst" };
+    const states = {};
+    const exists = {};
+    const details = {};
+    const busy = {};
+    const listEl = document.getElementById("list");
+    const msgEl = document.getElementById("msg");
+
+    const isWeb = () => Office.context.platform === Office.PlatformType.OfficeOnline;
+
+    function render() {
+      listEl.textContent = "";
+      Object.keys(ARCHIVES).forEach((year) => {
+        const on = states[year] === true;
+        const tile = document.createElement("div");
+        tile.className = "tile" + (on ? " on" : "");
+        const img = document.createElement("img");
+        img.alt = "";
+        img.src = "../MesArchives_" + (on ? "green" : "red") + "_80.png";
+        const y = document.createElement("div");
+        y.className = "year";
+        y.textContent = year;
+        const s = document.createElement("div");
+        s.className = "state";
+        s.textContent = on ? "Disponible" : "Indisponible";
+        const d = document.createElement("div");
+        d.className = "detail";
+        d.textContent = details[year] || "";
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.disabled = busy[year] === true;
+        btn.textContent = on ? "Décharger" : "Charger";
+        btn.addEventListener("click", () => toggle(year));
+        tile.append(img, y, s, d, btn);
+        listEl.appendChild(tile);
+      });
+    }
+
+    function webUrl(year) {
+      if (!CONFIG.webStatusEndpoint) throw new Error("Point d'accès Power Automate non configuré.");
+      const url = new URL(CONFIG.webStatusEndpoint);
+      if (url.protocol !== "https:") throw new Error("Le point d'accès doit utiliser HTTPS.");
+      if (year) url.searchParams.set("year", year);
+      return url;
+    }
+
+    async function agent(route, year) {
+      const resp = await fetch(PST_AGENT + route, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileName: ARCHIVES[year], sharePointPath: CONFIG.pstUrls && CONFIG.pstUrls[year] }),
+        signal: AbortSignal.timeout(20000)
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || data.ok === false) throw new Error(data.error || "Agent PST : HTTP " + resp.status);
+      return data;
+    }
+
+    async function readState(year) {
+      if (isWeb()) {
+        const r = await fetch(webUrl(year));
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        const d = await r.json();
+        return { exists: d.fileExists === true, mounted: d.fileExists === true && d.mounted === true };
+      }
+      const d = await agent("/state", year);
+      return { exists: d.exists === true, mounted: d.exists === true && d.mounted === true };
+    }
+
+    async function toggle(year) {
+      const target = !(states[year] === true);
+      busy[year] = true;
+      msgEl.textContent = "";
+      render();
+      try {
+        if (target) {
+          const st = await readState(year);
+          exists[year] = st.exists;
+          if (!st.exists) throw new Error("PST introuvable (" + ARCHIVES[year] + "), vérifiez OneDrive.");
+        }
+        if (isWeb()) {
+          const url = webUrl();
+          const r = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ annee: Number(year), Monte: target, Couleur: target ? "Vert" : "Rouge" })
+          });
+          if (!r.ok) throw new Error("HTTP " + r.status);
+        } else {
+          await agent(target ? "/mount-pst" : "/unmount-pst", year);
+        }
+        states[year] = target;
+        details[year] = target ? "Monté dans Outlook" : "Démonté";
+        Office.context.ui.messageParent(JSON.stringify({ type: "states", states }));
+      } catch (e) {
+        msgEl.textContent = year + " : " + (e.name === "TypeError" ? "agent PST local injoignable (127.0.0.1:45731)." : e.message);
+      }
+      busy[year] = false;
+      render();
+    }
+
+    document.getElementById("modop").addEventListener("click", () => window.open("https://dellasiegaps.github.io/MesArchivesAddin/docs/Fiche%20pratique%20-%20Exchange%20Online.pdf", "_blank", "noopener"));
+    document.getElementById("close").addEventListener("click", () => Office.context.ui.messageParent(JSON.stringify({ type: "close" })));
+    render();
+  </script>
+</body>
+</html>

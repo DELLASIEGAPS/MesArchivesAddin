@@ -1,0 +1,282 @@
+URL PST ARCHIVES OUTLOOK TEST
+https://dscoie091-my.sharepoint.com/personal/primosylvestredellasiega-nkoume_dscoie091_onmicrosoft_com/Documents/Personnel/ADR.pst
+
+Oui. Tu peux commencer sans Copilot directement dans Power Automate.
+
+Vu ton objectif Mes Archives, voici le cheminement minimal et concret.
+
+Étape 1 - Installer Power Automate Desktop
+
+Vérifie qu'il est installé :
+
+PAD.Console.Host.exe
+
+
+ou dans Windows :
+
+Power Automate
+
+
+Tu dois voir :
+
+Power Automate Desktop
+
+Étape 2 - Créer un flux Desktop
+
+Clique :
+
+Power Automate Desktop
+
+↓
+
+Nouveau flux
+
+↓
+
+ADR_MesArchives_Detection
+
+Étape 3 - Variable PST
+
+Ajoute :
+
+Définir variable
+
+
+Nom :
+
+PstPath
+
+
+Valeur :
+
+C:\Users\I21166T\Personnel\Outlook\ADR.pst
+
+Étape 4 - Vérifier existence
+
+Action :
+
+Condition
+
+↓
+
+Le fichier existe
+
+
+Fichier :
+
+%PstPath%
+
+Étape 5 - Branche OUI
+
+Ajoute :
+
+Afficher message
+
+
+Titre :
+
+Archive détectée
+
+
+Texte :
+
+ADR.pst trouvé
+
+
+Puis :
+
+Définir variable
+
+ArchiveMounted
+
+↓
+
+True
+
+Étape 6 - Branche NON
+
+Ajoute :
+
+Afficher message
+
+
+Titre :
+
+Archive absente
+
+
+Texte :
+
+ADR.pst introuvable
+
+
+Puis :
+
+Définir variable
+
+ArchiveMounted
+
+↓
+
+False
+
+Étape 7 - Test
+
+Clique :
+
+▶ Exécuter
+
+
+Résultat :
+
+ADR.pst trouvé
+
+
+ou
+
+ADR.pst introuvable
+
+Étape 8 - Version PowerShell
+
+Ajoute l'action :
+
+Exécuter script PowerShell
+
+
+Code :
+
+$pst = "C:\Users\$env:USERNAME\Personnel\Outlook\ADR.pst"
+
+if(Test-Path $pst)
+{
+    Write-Output "MOUNTED"
+}
+else
+{
+    Write-Output "NOT_FOUND"
+}
+
+Étape 9 - Évolution future
+
+Une fois le test validé :
+
+Outlook Web Add-in
+        ↓
+Power Automate Cloud
+        ↓
+Power Automate Desktop
+        ↓
+Détection PST
+        ↓
+Retour JSON
+        ↓
+🔴 → 🟢
+
+Important pour ton erreur actuelle
+
+Les erreurs :
+
+config.edge.skype.com
+
+CHILL
+
+CORS
+
+403
+
+x-ms-mac-log-interval-ms
+
+
+ne sont PAS la cause du rejet de ton complément.
+
+La seule erreur qui compte est :
+
+uploadCustomApp
+
+500 Internal Server Error
+
+
+et elle concerne encore le manifeste ou sa validation côté Microsoft 365.
+
+Donc :
+
+✅ continue le POC Power Automate Desktop pour Mes Archives
+
+✅ et en parallèle lance :
+
+npx office-addin-manifest validate MesArchives_SPOT.xml --verbose
+
+
+C'est cette commande qui te donnera enfin la vraie erreur de manifeste.
+
+
+
+OneDrive simplifié: https://dscoie091-my.sharepoint.com/personal/primosylvestredellasiega-nkoume_dscoie091_onmicrosoft_com/Documents/Personnel/ADR.pst
+connexion Microsoft 
+PrimoSylvestreDELLASIEGA-NKOUME@dscoie091.onmicrosoft.com
+
+
+
+ANEF
+9921078906
+R@ussir20XX@@@@
+
+Gmail
+
+
+Wise Pro account RE'SPOND'S Tech & Invest
+support@dsdata.biz
+R@ussir20XX
+
+ZenBusiness
+primo.dellasiega@icloud.com
+Réussir20@@
+
+
+iSupplier
+primo.dellasiega@icloud.com
+R@ussir20XX
+ot1 & 2:pbT9t9GsxBk5>2x4
+
+SRV Bureau Distant:
+- wddv097aba888ov.adbdfint.private
+
+GitHub
+Primo.DELLASIEGA.external2@test-banque-france.fr
+Réussir2026@VSTO
+
+support@dsdata.biz
+R@ussir20@@
+
+
+
+--
+Beeline
+edellasiegankoume724@gmail.com
+
+Réussir2025@Grandir
+---------------------
+commande Nginx:
+deb http://nginx.org/packages/debian/ jessie Nginx
+deb: indique à apt qu'il s'agit d'un dépôt conetnat des Paquets binaires déjà compilés.
+Autrement dit je veux installer des programmes prêts à l'emploi
+
+URL: http://nginx.org/packages/debian/
+Jessie nom de la version de Debian
+deb http://nginx.org/packages/debian/ jessie nginx
+Afficher plus de lignes
+
+signifie :
+
+Télécharge les paquets binaires Nginx depuis le dépôt officiel Nginx pour Debian Jessie.
+Signification de deb-src
+
+Contrairement à :
+deb
+
+qui fournit les binaires,
+
+deb-src
+fournit :
+
+les sources du programme
