@@ -42,8 +42,8 @@
   <Description DefaultValue="Mes Archives BdF - 4 icones rouges -> 2024 charge PST local -> verte -> decharge -> rouge"/>
 
   <!-- Icone normale (32x32) et grande icone (80x80). Doivent etre en https. -->
-  <IconUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_VSTO_32.png"/>
-  <HighResolutionIconUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_VSTO_80.png"/>
+  <IconUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_32.png"/>
+  <HighResolutionIconUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_80.png"/>
 
   <!-- Page d'aide / support -->
   <SupportUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/Autres/support.html"/>
@@ -117,9 +117,9 @@
     <!-- Textes, images et liens utilises par le bloc V1.0 (references par leur "id") -->
     <Resources>
       <bt:Images>
-        <bt:Image id="IconVSTO.16" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_VSTO_16.png"/>
-        <bt:Image id="IconVSTO.32" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_VSTO_32.png"/>
-        <bt:Image id="IconVSTO.80" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_VSTO_80.png"/>
+        <bt:Image id="IconVSTO.16" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_16.png"/>
+        <bt:Image id="IconVSTO.32" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_32.png"/>
+        <bt:Image id="IconVSTO.80" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_80.png"/>
         <bt:Image id="IconRed.16" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_16.png"/>
         <bt:Image id="IconRed.32" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_32.png"/>
         <bt:Image id="IconRed.80" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_80.png"/>
@@ -190,9 +190,9 @@
            Chaque "resid" plus haut doit exister ici avec le meme "id". -->
       <Resources>
         <bt:Images>
-          <bt:Image id="IconVSTO.16" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_VSTO_16.png"/>
-          <bt:Image id="IconVSTO.32" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_VSTO_32.png"/>
-          <bt:Image id="IconVSTO.80" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_VSTO_80.png"/>
+          <bt:Image id="IconVSTO.16" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_16.png"/>
+          <bt:Image id="IconVSTO.32" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_32.png"/>
+          <bt:Image id="IconVSTO.80" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_80.png"/>
           <bt:Image id="IconRed.16" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_16.png"/>
           <bt:Image id="IconRed.32" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_32.png"/>
           <bt:Image id="IconRed.80" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_80.png"/>
