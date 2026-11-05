@@ -134,7 +134,7 @@
           await agent(target ? "/mount-pst" : "/unmount-pst", year);
         }
         states[year] = target;
-        details[year] = target ? "";
+        details[year] = "";
         Office.context.ui.messageParent(JSON.stringify({ type: "states", states }));
       } catch (e) {
         details[year] = e.message;
