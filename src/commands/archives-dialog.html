@@ -34,6 +34,7 @@
   <div id="list"></div>
   <div id="msg"></div>
   <div class="footer">
+    <button id="modop" type="button">Modop</button>
     <button id="close" type="button">Fermer</button>
   </div>
   <script>
@@ -152,6 +153,7 @@
       render();
     }
 
+    document.getElementById("modop").addEventListener("click", () => window.open("https://dellasiegaps.github.io/MesArchivesAddin/docs/Fiche%20pratique%20-%20Exchange%20Online.pdf", "_blank", "noopener"));
     document.getElementById("close").addEventListener("click", () => Office.context.ui.messageParent(JSON.stringify({ type: "close" })));
     Office.onReady(() => { render(); refresh(); });
   </script>
