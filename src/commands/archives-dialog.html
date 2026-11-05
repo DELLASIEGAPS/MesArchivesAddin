@@ -54,7 +54,6 @@
       listEl.textContent = "";
       Object.keys(ARCHIVES).forEach((year) => {
         const on = states[year] === true;
-        const missing = exists[year] === false;
         const tile = document.createElement("div");
         tile.className = "tile" + (on ? " on" : "");
         const img = document.createElement("img");
@@ -71,7 +70,7 @@
         d.textContent = details[year] || "";
         const btn = document.createElement("button");
         btn.type = "button";
-        btn.disabled = busy[year] === true || (missing && !on);
+        btn.disabled = busy[year] === true;
         btn.textContent = on ? "Décharger" : "Charger";
         btn.addEventListener("click", () => toggle(year));
         tile.append(img, y, s, d, btn);
@@ -110,28 +109,17 @@
       return { exists: d.exists === true, mounted: d.exists === true && d.mounted === true };
     }
 
-    async function refresh() {
-      msgEl.textContent = "";
-      for (const year of Object.keys(ARCHIVES)) {
-        try {
-          const st = await readState(year);
-          states[year] = st.mounted;
-          exists[year] = st.exists;
-          details[year] = st.exists ? "PST présent" : "PST introuvable";
-        } catch (e) {
-          details[year] = "État illisible : " + e.message;
-        }
-      }
-      render();
-      Office.context.ui.messageParent(JSON.stringify({ type: "states", states }));
-    }
-
     async function toggle(year) {
       const target = !(states[year] === true);
       busy[year] = true;
       msgEl.textContent = "";
       render();
       try {
+        if (target) {
+          const st = await readState(year);
+          exists[year] = st.exists;
+          if (!st.exists) throw new Error("PST introuvable (" + ARCHIVES[year] + "), vérifiez OneDrive.");
+        }
         if (isWeb()) {
           const url = webUrl();
           const r = await fetch(url, {
@@ -155,7 +143,7 @@
 
     document.getElementById("modop").addEventListener("click", () => window.open("https://dellasiegaps.github.io/MesArchivesAddin/docs/Fiche%20pratique%20-%20Exchange%20Online.pdf", "_blank", "noopener"));
     document.getElementById("close").addEventListener("click", () => Office.context.ui.messageParent(JSON.stringify({ type: "close" })));
-    Office.onReady(() => { render(); refresh(); });
+    Office.onReady(() => render());
   </script>
 </body>
 </html>
