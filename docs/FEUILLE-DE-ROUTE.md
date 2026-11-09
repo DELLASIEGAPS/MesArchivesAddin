@@ -12,7 +12,7 @@ Le popup reprend les quatre années, leur état (Indisponible / Disponible) et l
 |---|---|---|
 | Interface | 1 bouton de ruban + popup (`displayDialogAsync`) | Le ruban Outlook ne garantit pas l'affichage/masquage dynamique des boutons |
 | Montage du PST | Agent local sur `127.0.0.1:45731` (COM Outlook, `AddStoreEx` / `RemoveStore`) | Seul un processus local peut monter un PST dans Outlook de bureau |
-| Emplacement des PST | Dossier OneDrive synchronisé `BdF\PST\` | Chemin identique pour tous les postes, synchronisation native |
+| Emplacement des PST | Source OneDrive synchronisée ; copie locale dans `%LOCALAPPDATA%\MesArchives\PST` | Outlook ouvre la copie, pas l'original synchronisé |
 | État côté web (OWA) | Flux Power Automate HTTP, lu via `webStatusEndpoint` | Pas de clé ni de secret dans le complément |
 | Icônes | Icônes rouge / vert existantes | Pas de nouveau visuel à produire |
 
@@ -41,6 +41,7 @@ Le popup reprend les quatre années, leur état (Indisponible / Disponible) et l
 ### Étape 3 : PST depuis OneDrive
 - [ ] Confirmer les chemins : `%OneDriveCommercial%\BdF\PST\YYYY.pst` (2024 : `ADR.pst`)
 - [ ] Vérifier que les fichiers sont bien en « toujours conserver sur cet appareil » (sinon le montage échoue)
+- [ ] Au premier montage, l'agent copie le fichier dans `%LOCALAPPDATA%\MesArchives\PST` ; les montages suivants réutilisent cette copie sans l'écraser ni la synchroniser avec OneDrive
 - [ ] Le PST monté doit apparaître dans le volet de dossiers d'Outlook
 
 ### Étape 4 : Agent local
