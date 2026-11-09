@@ -87,12 +87,12 @@ function Unmount-Pst([string]$pstPath) {
   $outlook = New-Object -ComObject Outlook.Application
   $ns = $outlook.GetNamespace("MAPI")
   foreach ($store in $ns.Stores) {
-    try {
-      if ($store.FilePath -and ($store.FilePath -ieq $pstPath)) {
-        $ns.RemoveStore($store.GetRootFolder())
-        return @{ ok = $true; unmounted = $true; path = $pstPath }
-      }
-    } catch {}
+    $storePath = $null
+    try { $storePath = $store.FilePath } catch { continue }
+    if ($storePath -and ($storePath -ieq $pstPath)) {
+      $ns.RemoveStore($store.GetRootFolder())
+      return @{ ok = $true; unmounted = $true; path = $pstPath }
+    }
   }
   return @{ ok = $true; alreadyUnmounted = $true; path = $pstPath }
 }
