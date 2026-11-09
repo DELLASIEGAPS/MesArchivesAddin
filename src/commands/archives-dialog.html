@@ -125,14 +125,14 @@
           const r = await fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ annee: Number(year), Monte: target, Couleur: target ? "Vert" : "Rouge" })
+            body: JSON.stringify({ annee: Number(year), Monte: target, Couleur: target ? "Vert" : "Rouge", sharePointPath: (CONFIG.pstUrls && CONFIG.pstUrls[year]) || "" })
           });
           if (!r.ok) throw new Error("HTTP " + r.status);
         } else {
           await agent(target ? "/mount-pst" : "/unmount-pst", year);
         }
         states[year] = target;
-        details[year] = target ? "Monté dans Outlook" : "Démonté";
+        details[year] = isWeb() ? (target ? "Disponible (Outlook Web)" : "Indisponible") : (target ? "Monté dans Outlook" : "Démonté");
         Office.context.ui.messageParent(JSON.stringify({ type: "states", states }));
       } catch (e) {
         msgEl.textContent = year + " : " + (e.name === "TypeError" ? "agent PST local injoignable (127.0.0.1:45731)." : e.message);
