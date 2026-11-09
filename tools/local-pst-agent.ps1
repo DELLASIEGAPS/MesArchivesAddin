@@ -23,6 +23,39 @@ function Find-PstFile([string]$fileName) {
   return $null
 }
 
+function Get-WorkingPstPath([string]$fileName) {
+  if ([string]::IsNullOrWhiteSpace($fileName) -or
+      $fileName.Contains("\") -or $fileName.Contains("/") -or
+      $fileName.Contains("..") -or $fileName -notlike "*.pst") {
+    throw "Invalid PST filename."
+  }
+  if ([string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
+    throw "LOCALAPPDATA is not configured."
+  }
+  return Join-Path (Join-Path $env:LOCALAPPDATA "MesArchives\PST") $fileName
+}
+
+function Get-OrCreateWorkingPst([string]$fileName) {
+  $workingPath = Get-WorkingPstPath $fileName
+  if (Test-Path -LiteralPath $workingPath -PathType Leaf) { return $workingPath }
+
+  $sourcePath = Find-PstFile $fileName
+  if (-not $sourcePath) { return $null }
+
+  $directory = Split-Path -Parent $workingPath
+  New-Item -ItemType Directory -Path $directory -Force | Out-Null
+  $temporaryPath = Join-Path $directory ([System.Guid]::NewGuid().ToString() + ".tmp")
+  try {
+    Copy-Item -LiteralPath $sourcePath -Destination $temporaryPath
+    [System.IO.File]::Move($temporaryPath, $workingPath)
+  } finally {
+    if (Test-Path -LiteralPath $temporaryPath) {
+      Remove-Item -LiteralPath $temporaryPath -Force
+    }
+  }
+  return $workingPath
+}
+
 function Add-CorsHeaders($res) {
   $res.Headers["Access-Control-Allow-Origin"] = "https://dellasiegaps.github.io"
   $res.Headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
@@ -65,8 +98,14 @@ function Unmount-Pst([string]$pstPath) {
 }
 
 function Get-PstState([string]$fileName) {
-  $pstPath = Find-PstFile $fileName
-  if (-not $pstPath) { return @{ ok = $true; exists = $false; mounted = $false; fileName = $fileName } }
+  $pstPath = Get-WorkingPstPath $fileName
+  $copyExists = Test-Path -LiteralPath $pstPath -PathType Leaf
+  if (-not $copyExists -and -not (Find-PstFile $fileName)) {
+    return @{ ok = $true; exists = $false; mounted = $false; fileName = $fileName }
+  }
+  if (-not $copyExists) {
+    return @{ ok = $true; exists = $true; mounted = $false; fileName = $fileName }
+  }
   $outlook = New-Object -ComObject Outlook.Application
   $mounted = $false
   foreach ($store in $outlook.GetNamespace("MAPI").Stores) {
@@ -96,14 +135,17 @@ while ($listener.IsListening) {
     switch ($req.Url.AbsolutePath) {
       "/mount-pst" {
         $fileName = [string]$body.fileName
-        $pstPath = Find-PstFile $fileName
+        $pstPath = Get-OrCreateWorkingPst $fileName
         if (-not $pstPath) { Write-Json $res 404 @{ ok = $false; code = "PST_NOT_FOUND"; error = "PST not found locally"; fileName = $fileName }; continue }
         Write-Json $res 200 (Mount-Pst $pstPath)
       }
       "/unmount-pst" {
         $fileName = [string]$body.fileName
-        $pstPath = Find-PstFile $fileName
-        if (-not $pstPath) { Write-Json $res 404 @{ ok = $false; code = "PST_NOT_FOUND"; error = "PST not found locally"; fileName = $fileName }; continue }
+        $pstPath = Get-WorkingPstPath $fileName
+        if (-not (Test-Path -LiteralPath $pstPath -PathType Leaf)) {
+          Write-Json $res 200 @{ ok = $true; alreadyUnmounted = $true; fileName = $fileName }
+          continue
+        }
         Write-Json $res 200 (Unmount-Pst $pstPath)
       }
       "/state" { Write-Json $res 200 (Get-PstState ([string]$body.fileName)) }
