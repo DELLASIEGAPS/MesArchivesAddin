@@ -25,6 +25,36 @@ Le popup reprend les quatre années, leur état (Indisponible / Disponible) et l
 
 ## Étapes restantes
 
+### Démo rapide : Outlook classique sur Windows
+
+Cette démo utilise un PST dans OneDrive **synchronisé sur le poste** et l'agent
+local. Elle ne monte pas de PST dans Outlook Web et n'importe rien dans l'archive
+Exchange Online. Tester d'abord avec un PST de démonstration, pas avec une archive
+de production.
+
+1. Sur le PC Windows, ouvrir Outlook classique, vérifier que le complément est
+   déployé et que le bouton « Mes Archives » apparaît lors de la lecture d'un mail.
+2. Dans le dossier OneDrive synchronisé, placer un fichier `ADR.pst` pour 2024
+   (ou `2021.pst`, `2022.pst`, `2023.pst`) et sélectionner « Toujours conserver
+   sur cet appareil ». L'agent cherche par nom dans les dossiers OneDrive; éviter
+   plusieurs fichiers portant le même nom.
+3. Récupérer `tools/local-pst-agent.ps1` depuis la version déployée du projet.
+   Dans PowerShell, avec l'accord et la politique d'exécution de la DSI, lancer :
+   `& "C:\chemin\vers\local-pst-agent.ps1"`. Laisser la fenêtre ouverte. L'agent
+   écoute sur `127.0.0.1:45731`; il ne constitue pas un service sécurisé de
+   production et doit être utilisé uniquement dans un environnement de démo fiable.
+4. Ouvrir le complément, attendre la vérification des états, puis cliquer sur
+   « Charger » pour l'année choisie. Le premier chargement copie le PST dans
+   `%LOCALAPPDATA%\MesArchives\PST` et peut prendre plusieurs minutes.
+5. Vérifier l'apparition de l'archive dans le volet de dossiers d'Outlook. Cliquer
+   sur « Décharger » pour la retirer d'Outlook; la copie locale n'est pas supprimée.
+   Si l'état est inconnu, vérifier l'agent puis cliquer sur « Actualiser ».
+
+Les modifications apportées à la copie locale ne sont pas synchronisées vers le
+PST source OneDrive. Une copie existante est réutilisée et n'est pas remplacée par
+une nouvelle version de la source. Ce scénario nécessite une recette sur le poste
+Windows avant présentation; le code n'a pas été validé avec Outlook réel ici.
+
 ### Étape 1 : Déploiement (bloquant)
 - [ ] Supprimer l'ancienne application « MesArchives SPOT » du centre d'administration
 - [ ] Redéployer via `https://dellasiegaps.github.io/MesArchivesAddin/manifest.xml`

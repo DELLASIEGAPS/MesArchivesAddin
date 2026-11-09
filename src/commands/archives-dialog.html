@@ -14,10 +14,13 @@
     .tile { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; background: #fff;
             border: 2px solid #c62828; border-radius: 8px; padding: 12px 6px; text-align: center; }
     .tile.on { border-color: #2e7d32; }
+    .tile.unknown { border-color: #777; }
+    .tile.unknown img { filter: grayscale(1); }
     .tile img { width: 48px; height: 48px; }
     .year { font-weight: 600; font-size: 15px; }
     .state { font-size: 12px; font-weight: 600; color: #c62828; }
     .tile.on .state { color: #2e7d32; }
+    .tile.unknown .state { color: #777; }
     .detail { font-size: 11px; color: #888; min-height: 28px; }
     button { width: 100%; padding: 7px 4px; border: 0; border-radius: 4px; color: #fff; cursor: pointer;
              font-size: 12px; font-weight: 600; background: #c62828; }
@@ -35,6 +38,7 @@
   <div id="msg"></div>
   <div class="footer">
     <button id="modop" type="button">Modop</button>
+    <button id="refresh" type="button">Actualiser</button>
     <button id="close" type="button">Fermer</button>
   </div>
   <script>
@@ -42,9 +46,9 @@
     const CONFIG = window.MES_ARCHIVES_CONFIG || {};
     const ARCHIVES = { "2021": "2021.pst", "2022": "2022.pst", "2023": "2023.pst", "2024": "ADR.pst" };
     const states = {};
-    const exists = {};
     const details = {};
     const busy = {};
+    let refreshing = false;
     const listEl = document.getElementById("list");
     const msgEl = document.getElementById("msg");
 
@@ -54,8 +58,9 @@
       listEl.textContent = "";
       Object.keys(ARCHIVES).forEach((year) => {
         const on = states[year] === true;
+        const unknown = typeof states[year] !== "boolean";
         const tile = document.createElement("div");
-        tile.className = "tile" + (on ? " on" : "");
+        tile.className = "tile" + (unknown ? " unknown" : on ? " on" : "");
         const img = document.createElement("img");
         img.alt = "";
         img.src = "../MesArchives_" + (on ? "green" : "red") + "_80.png";
@@ -64,13 +69,13 @@
         y.textContent = year;
         const s = document.createElement("div");
         s.className = "state";
-        s.textContent = on ? "Disponible" : "Indisponible";
+        s.textContent = unknown ? "État inconnu" : on ? "Disponible" : "Indisponible";
         const d = document.createElement("div");
         d.className = "detail";
         d.textContent = details[year] || "";
         const btn = document.createElement("button");
         btn.type = "button";
-        btn.disabled = busy[year] === true;
+        btn.disabled = unknown || Object.values(busy).some(Boolean) || refreshing;
         btn.textContent = on ? "Décharger" : "Charger";
         btn.addEventListener("click", () => toggle(year));
         tile.append(img, y, s, d, btn);
@@ -91,10 +96,11 @@
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fileName: ARCHIVES[year], sharePointPath: CONFIG.pstUrls && CONFIG.pstUrls[year] }),
-        signal: AbortSignal.timeout(20000)
+        signal: AbortSignal.timeout(route === "/mount-pst" ? 600000 : 60000)
       });
-      const data = await resp.json().catch(() => ({}));
+      const data = await resp.json();
       if (!resp.ok || data.ok === false) throw new Error(data.error || "Agent PST : HTTP " + resp.status);
+      if (data.ok !== true) throw new Error("Réponse inattendue de l'agent PST.");
       return data;
     }
 
@@ -106,20 +112,51 @@
         return { exists: d.fileExists === true, mounted: d.fileExists === true && d.mounted === true };
       }
       const d = await agent("/state", year);
+      if (typeof d.exists !== "boolean" || typeof d.mounted !== "boolean") {
+        throw new Error("État invalide renvoyé par l'agent PST.");
+      }
       return { exists: d.exists === true, mounted: d.exists === true && d.mounted === true };
     }
 
+    async function refreshStates() {
+      if (refreshing || Object.values(busy).some(Boolean)) return;
+      refreshing = true;
+      msgEl.textContent = "Vérification des archives…";
+      render();
+      let failed = false;
+      for (const year of Object.keys(ARCHIVES)) {
+        try {
+          const state = await readState(year);
+          states[year] = state.mounted;
+          details[year] = state.mounted ? "Monté dans Outlook" : state.exists ? "PST disponible" : "PST introuvable";
+        } catch (error) {
+          delete states[year];
+          details[year] = "Vérification impossible";
+          failed = true;
+          console.error("État de l'archive " + year + " indisponible.", error);
+        }
+      }
+      msgEl.textContent = failed
+        ? (isWeb()
+          ? "État Web indisponible : vérifiez la configuration du service, puis cliquez sur Actualiser."
+          : "État indisponible : vérifiez que l'agent PST est lancé, puis cliquez sur Actualiser.")
+        : "";
+      refreshing = false;
+      render();
+    }
+
     async function toggle(year) {
+      if (refreshing || Object.values(busy).some(Boolean) || typeof states[year] !== "boolean") return;
+      const previous = states[year];
       const target = !(states[year] === true);
       busy[year] = true;
       msgEl.textContent = "";
+      details[year] = target ? "Chargement en cours…" : "Déchargement en cours…";
       render();
       try {
-        if (target) {
-          const st = await readState(year);
-          exists[year] = st.exists;
-          if (!st.exists) throw new Error("PST introuvable (" + ARCHIVES[year] + "), vérifiez OneDrive.");
-        }
+        const st = await readState(year);
+        if (st.mounted !== previous) throw new Error("L'état a changé dans Outlook. Cliquez sur Actualiser.");
+        if (target && !st.exists) throw new Error("PST introuvable (" + ARCHIVES[year] + "), vérifiez OneDrive.");
         if (isWeb()) {
           const url = webUrl();
           const r = await fetch(url, {
@@ -131,19 +168,28 @@
         } else {
           await agent(target ? "/mount-pst" : "/unmount-pst", year);
         }
-        states[year] = target;
+        const confirmed = await readState(year);
+        if (confirmed.mounted !== target) throw new Error("L'état dans Outlook ne confirme pas l'opération.");
+        states[year] = confirmed.mounted;
         details[year] = target ? "Monté dans Outlook" : "Démonté";
         Office.context.ui.messageParent(JSON.stringify({ type: "states", states }));
       } catch (e) {
-        msgEl.textContent = year + " : " + (e.name === "TypeError" ? "agent PST local injoignable (127.0.0.1:45731)." : e.message);
+        delete states[year];
+        details[year] = "État à vérifier";
+        const reason = e.name === "TypeError"
+          ? (isWeb() ? "service Web injoignable." : "agent PST local injoignable (127.0.0.1:45731).")
+          : e.message;
+        msgEl.textContent = year + " : " + reason + " Cliquez sur Actualiser.";
       }
       busy[year] = false;
       render();
     }
 
     document.getElementById("modop").addEventListener("click", () => window.open("https://dellasiegaps.github.io/MesArchivesAddin/docs/Fiche%20pratique%20-%20Exchange%20Online.pdf", "_blank", "noopener"));
+    document.getElementById("refresh").addEventListener("click", refreshStates);
     document.getElementById("close").addEventListener("click", () => Office.context.ui.messageParent(JSON.stringify({ type: "close" })));
     render();
+    Office.onReady(refreshStates);
   </script>
 </body>
 </html>
