@@ -115,7 +115,25 @@
       if (typeof d.exists !== "boolean" || typeof d.mounted !== "boolean") {
         throw new Error("État invalide renvoyé par l'agent PST.");
       }
-      return { exists: d.exists === true, mounted: d.exists === true && d.mounted === true };
+      const state = { exists: d.exists === true, mounted: d.exists === true && d.mounted === true, local: d.exists === true, cloud: null };
+      if (CONFIG.webStatusEndpoint) {
+        try {
+          const r = await fetch(webUrl(year));
+          if (r.ok) state.cloud = (await r.json()).fileExists === true;
+        } catch (error) {
+          console.error("Présence cloud " + year + " indisponible.", error);
+        }
+      }
+      return state;
+    }
+
+    function presenceDetail(state) {
+      if (state.mounted) return "Monté dans Outlook";
+      if (state.cloud === null) return state.local ? "PST présent en local (cloud non vérifié)" : "PST introuvable en local (cloud non vérifié)";
+      if (state.local && state.cloud) return "PST présent en local et dans OneDrive cloud";
+      if (state.local) return "PST présent en local uniquement, absent du cloud";
+      if (state.cloud) return "PST présent dans le cloud uniquement, absent en local : attendez la synchronisation OneDrive";
+      return "PST introuvable en local et dans le cloud";
     }
 
     async function refreshStates() {
@@ -128,7 +146,7 @@
         try {
           const state = await readState(year);
           states[year] = state.mounted;
-          details[year] = state.mounted ? "Monté dans Outlook" : state.exists ? "PST disponible" : "PST introuvable";
+          details[year] = isWeb() ? (state.mounted ? "Monté dans Outlook" : state.exists ? "PST disponible" : "PST introuvable") : presenceDetail(state);
         } catch (error) {
           delete states[year];
           details[year] = "Vérification impossible";
@@ -156,7 +174,9 @@
       try {
         const st = await readState(year);
         if (st.mounted !== previous) throw new Error("L'état a changé dans Outlook. Cliquez sur Actualiser.");
-        if (target && !st.exists) throw new Error("PST introuvable (" + ARCHIVES[year] + "), vérifiez OneDrive.");
+        if (target && !st.exists) throw new Error(st.cloud === true
+          ? "PST présent uniquement dans le cloud (" + ARCHIVES[year] + ") : attendez la synchronisation OneDrive locale."
+          : "PST introuvable (" + ARCHIVES[year] + ") en local" + (st.cloud === false ? " et dans le cloud" : "") + ", vérifiez OneDrive.");
         if (isWeb()) {
           const url = webUrl();
           const r = await fetch(url, {
