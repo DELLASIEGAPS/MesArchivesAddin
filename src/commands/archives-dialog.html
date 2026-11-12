@@ -44,7 +44,9 @@
   <script>
     const PST_AGENT = "http://127.0.0.1:45731";
     const CONFIG = window.MES_ARCHIVES_CONFIG || {};
-    const ARCHIVES = { "2021": "2021.pst", "2022": "2022.pst", "2023": "2023.pst", "2024": "ADR.pst" };
+    const ARCHIVES = { "2021": "ADR_2021.pst", "2022": "ADR_2022.pst", "2023": "ADR_2023.pst", "2024": "ADR.pst" };
+    // Nom affiché dans le volet de dossiers d'Outlook.
+    const DISPLAY_NAMES = { "2021": "Archives 2021", "2022": "Archives 2022", "2023": "Archives 2023", "2024": "Archives 2024" };
     const states = {};
     const details = {};
     const busy = {};
@@ -95,7 +97,7 @@
       const resp = await fetch(PST_AGENT + route, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileName: ARCHIVES[year], sharePointPath: CONFIG.pstUrls && CONFIG.pstUrls[year] }),
+        body: JSON.stringify({ fileName: ARCHIVES[year], displayName: DISPLAY_NAMES[year], sharePointPath: CONFIG.pstUrls && CONFIG.pstUrls[year] }),
         signal: AbortSignal.timeout(route === "/mount-pst" ? 600000 : 60000)
       });
       const data = await resp.json();
@@ -115,11 +117,17 @@
       if (typeof d.exists !== "boolean" || typeof d.mounted !== "boolean") {
         throw new Error("État invalide renvoyé par l'agent PST.");
       }
-      const state = { exists: d.exists === true, mounted: d.exists === true && d.mounted === true, local: d.exists === true, cloud: null };
+      const state = {
+        exists: d.exists === true,
+        mounted: d.exists === true && d.mounted === true,
+        local: typeof d.local === "boolean" ? d.local : d.exists === true,
+        cloud: d.cloud === true ? true : null,
+        outlookClosed: d.outlookRunning === false
+      };
       if (CONFIG.webStatusEndpoint) {
         try {
           const r = await fetch(webUrl(year));
-          if (r.ok) state.cloud = (await r.json()).fileExists === true;
+          if (r.ok) { const inCloud = (await r.json()).fileExists === true; state.cloud = state.cloud === true ? true : inCloud; }
         } catch (error) {
           console.error("Présence cloud " + year + " indisponible.", error);
         }
@@ -128,6 +136,11 @@
     }
 
     function presenceDetail(state) {
+      const text = presenceText(state);
+      return state.outlookClosed && !state.mounted ? text + " (Outlook fermé)" : text;
+    }
+
+    function presenceText(state) {
       if (state.mounted) return "Monté dans Outlook";
       if (state.cloud === null) return state.local ? "PST présent en local (cloud non vérifié)" : "PST introuvable en local (cloud non vérifié)";
       if (state.local && state.cloud) return "PST présent en local et dans OneDrive cloud";

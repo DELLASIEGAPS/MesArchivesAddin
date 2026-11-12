@@ -35,7 +35,7 @@ de production.
 1. Sur le PC Windows, ouvrir Outlook classique, vérifier que le complément est
    déployé et que le bouton « Mes Archives » apparaît lors de la lecture d'un mail.
 2. Dans le dossier OneDrive synchronisé, placer un fichier `ADR.pst` pour 2024
-   (ou `2021.pst`, `2022.pst`, `2023.pst`) et sélectionner « Toujours conserver
+   (ou `ADR_2021.pst`, `ADR_2022.pst`, `ADR_2023.pst`) et sélectionner « Toujours conserver
    sur cet appareil ». L'agent cherche par nom dans les dossiers OneDrive; éviter
    plusieurs fichiers portant le même nom.
 3. Récupérer `tools/local-pst-agent.ps1` depuis la version déployée du projet.

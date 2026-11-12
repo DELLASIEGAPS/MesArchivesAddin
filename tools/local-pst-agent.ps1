@@ -73,18 +73,44 @@ function Write-Json($res, [int]$status, $obj) {
   $res.Close()
 }
 
-function Mount-Pst([string]$pstPath) {
-  $outlook = New-Object -ComObject Outlook.Application
-  $ns = $outlook.GetNamespace("MAPI")
-  foreach ($store in $ns.Stores) {
-    try { if ($store.FilePath -and ($store.FilePath -ieq $pstPath)) { return @{ ok = $true; alreadyMounted = $true; path = $pstPath } } } catch {}
+# Attache uniquement une instance déjà ouverte : New-Object relancerait Outlook en arrière-plan.
+function Get-RunningOutlook {
+  try { return [System.Runtime.InteropServices.Marshal]::GetActiveObject("Outlook.Application") } catch { return $null }
+}
+
+function Test-PstMounted($outlook, [string]$pstPath) {
+  foreach ($store in $outlook.GetNamespace("MAPI").Stores) {
+    try { if ($store.FilePath -and ($store.FilePath -ieq $pstPath)) { return $true } } catch {}
   }
-  $ns.AddStoreEx($pstPath, 3) # olStoreUnicode
+  return $false
+}
+
+function Set-PstDisplayName($outlook, [string]$pstPath, [string]$displayName) {
+  if ([string]::IsNullOrWhiteSpace($displayName)) { return }
+  foreach ($store in $outlook.GetNamespace("MAPI").Stores) {
+    try {
+      if ($store.FilePath -and ($store.FilePath -ieq $pstPath)) {
+        $root = $store.GetRootFolder()
+        if ($root.Name -ne $displayName) { $root.Name = $displayName }
+        return
+      }
+    } catch {}
+  }
+}
+
+function Mount-Pst([string]$pstPath, [string]$displayName) {
+  $outlook = Get-RunningOutlook
+  if (-not $outlook) { throw [System.InvalidOperationException]::new("OUTLOOK_NOT_RUNNING") }
+  $already = Test-PstMounted $outlook $pstPath
+  if (-not $already) { $outlook.GetNamespace("MAPI").AddStoreEx($pstPath, 3) } # olStoreUnicode
+  Set-PstDisplayName $outlook $pstPath $displayName
+  if ($already) { return @{ ok = $true; alreadyMounted = $true; path = $pstPath } }
   return @{ ok = $true; mounted = $true; path = $pstPath }
 }
 
 function Unmount-Pst([string]$pstPath) {
-  $outlook = New-Object -ComObject Outlook.Application
+  $outlook = Get-RunningOutlook
+  if (-not $outlook) { return @{ ok = $true; alreadyUnmounted = $true; outlookRunning = $false; path = $pstPath } }
   $ns = $outlook.GetNamespace("MAPI")
   foreach ($store in $ns.Stores) {
     $storePath = $null
@@ -97,21 +123,36 @@ function Unmount-Pst([string]$pstPath) {
   return @{ ok = $true; alreadyUnmounted = $true; path = $pstPath }
 }
 
+# Fichier OneDrive « en ligne uniquement » : attributs RECALL_ON_DATA_ACCESS, RECALL_ON_OPEN ou OFFLINE.
+function Test-CloudOnlyPlaceholder([string]$path) {
+  $attrs = [int](Get-Item -LiteralPath $path -Force).Attributes
+  return (($attrs -band (0x400000 -bor 0x40000 -bor 0x1000)) -ne 0)
+}
+
+# Recalculé à chaque appel : copie de travail, présence dans le dossier OneDrive, état de montage.
 function Get-PstState([string]$fileName) {
   $pstPath = Get-WorkingPstPath $fileName
-  $copyExists = Test-Path -LiteralPath $pstPath -PathType Leaf
-  if (-not $copyExists -and -not (Find-PstFile $fileName)) {
-    return @{ ok = $true; exists = $false; mounted = $false; fileName = $fileName }
+  $workingCopy = Test-Path -LiteralPath $pstPath -PathType Leaf
+  $sourcePath = Find-PstFile $fileName
+  $inOneDrive = [bool]$sourcePath
+  $onedriveLocal = $inOneDrive -and -not (Test-CloudOnlyPlaceholder $sourcePath)
+  $state = @{
+    ok = $true; fileName = $fileName
+    exists = ($workingCopy -or $inOneDrive)
+    local = ($workingCopy -or $onedriveLocal)
+    workingCopy = $workingCopy
+    onedriveLocal = $onedriveLocal
+    # Un fichier visible dans le dossier de synchronisation existe dans le cloud ; son absence ne prouve rien.
+    cloud = $(if ($inOneDrive) { $true } else { $null })
+    mounted = $false
+    outlookRunning = $false
   }
-  if (-not $copyExists) {
-    return @{ ok = $true; exists = $true; mounted = $false; fileName = $fileName }
+  $outlook = Get-RunningOutlook
+  if ($outlook) {
+    $state.outlookRunning = $true
+    if ($workingCopy) { $state.mounted = (Test-PstMounted $outlook $pstPath) }
   }
-  $outlook = New-Object -ComObject Outlook.Application
-  $mounted = $false
-  foreach ($store in $outlook.GetNamespace("MAPI").Stores) {
-    try { if ($store.FilePath -and ($store.FilePath -ieq $pstPath)) { $mounted = $true; break } } catch {}
-  }
-  return @{ ok = $true; exists = $true; mounted = $mounted; path = $pstPath }
+  return $state
 }
 
 $listener = [System.Net.HttpListener]::new()
@@ -137,7 +178,7 @@ while ($listener.IsListening) {
         $fileName = [string]$body.fileName
         $pstPath = Get-OrCreateWorkingPst $fileName
         if (-not $pstPath) { Write-Json $res 404 @{ ok = $false; code = "PST_NOT_FOUND"; error = "PST not found locally"; fileName = $fileName }; continue }
-        Write-Json $res 200 (Mount-Pst $pstPath)
+        Write-Json $res 200 (Mount-Pst $pstPath ([string]$body.displayName))
       }
       "/unmount-pst" {
         $fileName = [string]$body.fileName
@@ -153,6 +194,10 @@ while ($listener.IsListening) {
       default { Write-Json $res 404 @{ ok = $false; error = "Route not found" } }
     }
   } catch {
+    if ($_.Exception.Message -eq "OUTLOOK_NOT_RUNNING") {
+      Write-Json $res 409 @{ ok = $false; code = "OUTLOOK_NOT_RUNNING"; error = "Outlook n'est pas ouvert : lancez Outlook puis réessayez." }
+      continue
+    }
     Write-Json $res 500 @{ ok = $false; error = $_.Exception.Message }
   }
 }
