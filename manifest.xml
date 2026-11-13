@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ===================================================================
+  MANIFESTE DU COMPLEMENT OUTLOOK : MesArchives SPOT
+  ===================================================================
+  Ce fichier dit a Outlook :
+   - comment s'appelle le complement et qui l'a cree
+   - ou se trouvent les pages web (hebergees sur GitHub Pages)
+   - quels boutons afficher dans le ruban quand on lit un mail
+
+  IMPORTANT (c'est ce qui causait l'erreur de validation) :
+  Le fichier contient DEUX blocs "VersionOverrides", l'un DANS l'autre :
+   1) Le bloc externe (V1.0) : exige par le schema Microsoft.
+   2) Le bloc interne (V1.1) : contient les fonctions plus recentes
+      (Runtimes = le code reste en memoire pour garder rouge/vert).
+  Ne jamais mettre le bloc V1.1 directement sous OfficeApp.
+  ===================================================================
+-->
+<OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+           xsi:type="MailApp">
+
+  <!-- ===== PARTIE 1 : IDENTITE DU COMPLEMENT ===== -->
+
+  <!-- Identifiant unique (GUID). Ne pas le changer, sinon Outlook croit que c'est un autre complement. -->
+  <Id>014352da-084d-44ca-9589-65f15fe9af4e</Id>
+
+  <!-- Numero de version. A augmenter a chaque nouvelle livraison (ex : 2.0.7.0). -->
+  <Version>2.26.1112.1433</Version>
+
+  <!-- Nom de l'editeur -->
+  <ProviderName>MesArchives_SPOT</ProviderName>
+
+  <!-- Langue par defaut : francais de France -->
+  <DefaultLocale>fr-FR</DefaultLocale>
+
+  <!-- Nom affiche dans Outlook -->
+  <DisplayName DefaultValue="MesArchives SPOT"/>
+
+  <!-- Petite description affichee dans le magasin / la liste des complements -->
+  <Description DefaultValue="Mes Archives BdF - 4 icones rouges -> 2024 charge PST local -> verte -> decharge -> rouge"/>
+
+  <!-- Icone normale (32x32) et grande icone (80x80). Doivent etre en https. -->
+  <IconUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_32.png"/>
+  <HighResolutionIconUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_80.png"/>
+
+  <!-- Page d'aide / support -->
+  <SupportUrl DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/Autres/support.html"/>
+
+  <!-- Sites web que le complement a le droit d'ouvrir -->
+  <AppDomains>
+    <AppDomain>https://dellasiegaps.github.io</AppDomain>
+    <AppDomain>https://dellasiegaexternal2.github.io</AppDomain>
+  </AppDomains>
+
+  <!-- Ce complement fonctionne dans la boite aux lettres (Outlook) -->
+  <Hosts><Host Name="Mailbox"/></Hosts>
+
+  <!-- Version minimale de l'API Outlook de BASE (volontairement basse : 1.1).
+       Les blocs plus bas demandent des versions plus hautes (1.3 puis 1.8).
+       Regle : la base doit etre INFERIEURE OU EGALE aux versions des blocs. -->
+  <Requirements><Sets><Set Name="Mailbox" MinVersion="1.1"/></Sets></Requirements>
+
+  <!-- Page affichee en mode volet (taskpane) quand on lit un mail -->
+  <FormSettings>
+    <Form xsi:type="ItemRead">
+      <DesktopSettings>
+        <SourceLocation DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/taskpane/taskpane.html"/>
+        <RequestedHeight>450</RequestedHeight>
+      </DesktopSettings>
+    </Form>
+  </FormSettings>
+
+  <!-- Droits demandes : lire et ecrire dans la boite mail (necessaire pour charger/decharger le PST) -->
+  <Permissions>ReadWriteMailbox</Permissions>
+
+  <!-- Le complement apparait seulement sur les messages (lecture ou edition) -->
+  <Rule xsi:type="RuleCollection" Mode="Or">
+    <Rule xsi:type="ItemIs" ItemType="Message" FormType="Read"/>
+    <Rule xsi:type="ItemIs" ItemType="Message" FormType="Edit"/>
+  </Rule>
+
+  <!-- ===== PARTIE 2 : BLOC EXTERNE V1.0 (obligatoire pour le schema) ===== -->
+  <!-- Version simple et minimale. Les anciens Outlook utilisent ce bloc. -->
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides" xsi:type="VersionOverridesV1_0">
+
+    <!-- Ce bloc demande l'API Outlook 1.3 minimum -->
+    <Requirements>
+      <bt:Sets DefaultMinVersion="1.3">
+        <bt:Set Name="Mailbox"/>
+      </bt:Sets>
+    </Requirements>
+
+    <Hosts>
+      <Host xsi:type="MailHost">
+        <DesktopFormFactor>
+          <!-- Page qui contient les fonctions appelees par les boutons -->
+          <FunctionFile resid="Commands.Url"/>
+          <ExtensionPoint xsi:type="MessageReadCommandSurface">
+            <OfficeTab id="TabDefault">
+              <Group id="MesArchivesGroup">
+                <Label resid="GroupLabel"/>
+                <Control xsi:type="Button" id="openArchives">
+                  <Label resid="archivesLabel"/>
+                  <Supertip><Title resid="archivesLabel"/><Description resid="archivesDesc"/></Supertip>
+                  <Icon><bt:Image size="16" resid="IconVSTO.16"/><bt:Image size="32" resid="IconVSTO.32"/><bt:Image size="80" resid="IconVSTO.80"/></Icon>
+                  <Action xsi:type="ExecuteFunction"><FunctionName>openArchives</FunctionName></Action>
+                </Control>
+              </Group>
+            </OfficeTab>
+          </ExtensionPoint>
+        </DesktopFormFactor>
+      </Host>
+    </Hosts>
+
+    <!-- Textes, images et liens utilises par le bloc V1.0 (references par leur "id") -->
+    <Resources>
+      <bt:Images>
+        <bt:Image id="IconVSTO.16" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_16.png"/>
+        <bt:Image id="IconVSTO.32" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_32.png"/>
+        <bt:Image id="IconVSTO.80" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_80.png"/>
+        <bt:Image id="IconRed.16" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_16.png"/>
+        <bt:Image id="IconRed.32" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_32.png"/>
+        <bt:Image id="IconRed.80" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_80.png"/>
+        <bt:Image id="IconGreen.16" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_green_16.png"/>
+        <bt:Image id="IconGreen.32" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_green_32.png"/>
+        <bt:Image id="IconGreen.80" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_green_80.png"/>
+      </bt:Images>
+      <bt:Urls>
+        <bt:Url id="Commands.Url" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/commands/commands.html"/>
+        <bt:Url id="Taskpane.Url" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/taskpane/taskpane.html"/>
+      </bt:Urls>
+      <bt:ShortStrings>
+        <bt:String id="GroupLabel" DefaultValue="Mes Archives BdF"/>
+        <bt:String id="archivesLabel" DefaultValue="Mes Archives"/>
+      </bt:ShortStrings>
+      <bt:LongStrings>
+        <bt:String id="archivesDesc" DefaultValue="Ouvrir le popup Mes Archives : charger/décharger les PST 2021-2024 (rouge = indisponible, vert = disponible)"/>
+      </bt:LongStrings>
+    </Resources>
+
+    <!-- ===== PARTIE 3 : BLOC INTERNE V1.1 (version complete, Outlook recent) ===== -->
+    <!-- Place A L'INTERIEUR du bloc V1.0 : c'est la bonne facon de faire. -->
+    <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides/1.1" xsi:type="VersionOverridesV1_1">
+
+      <!-- Ce bloc demande l'API Outlook 1.8 minimum -->
+      <Requirements>
+        <bt:Sets DefaultMinVersion="1.8">
+          <bt:Set Name="Mailbox"/>
+        </bt:Sets>
+      </Requirements>
+
+      <Hosts>
+        <Host xsi:type="MailHost">
+
+          <!-- Runtime "long" : le code JavaScript reste charge en memoire.
+               C'est ce qui permet de se souvenir si le bouton est rouge ou vert. -->
+          <Runtimes>
+            <Runtime resid="Commands.Url" lifetime="long"/>
+          </Runtimes>
+
+          <DesktopFormFactor>
+            <FunctionFile resid="Commands.Url"/>
+            <ExtensionPoint xsi:type="MessageReadCommandSurface">
+              <OfficeTab id="TabDefault">
+                <Group id="MesArchivesGroup">
+                  <Label resid="GroupLabel"/>
+
+
+
+
+
+                  <!-- Bouton "SPOT" : ouvre le volet d'information (taskpane) -->
+                  <Control xsi:type="Button" id="openArchives">
+                    <Label resid="archivesLabel"/>
+                    <Supertip><Title resid="archivesLabel"/><Description resid="archivesDesc"/></Supertip>
+                    <Icon><bt:Image size="16" resid="IconVSTO.16"/><bt:Image size="32" resid="IconVSTO.32"/><bt:Image size="80" resid="IconVSTO.80"/></Icon>
+                    <Action xsi:type="ExecuteFunction"><FunctionName>openArchives</FunctionName></Action>
+                  </Control>
+
+                </Group>
+              </OfficeTab>
+            </ExtensionPoint>
+          </DesktopFormFactor>
+        </Host>
+      </Hosts>
+
+      <!-- Liste des images, liens et textes utilises par les boutons ci-dessus.
+           Chaque "resid" plus haut doit exister ici avec le meme "id". -->
+      <Resources>
+        <bt:Images>
+          <bt:Image id="IconVSTO.16" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_16.png"/>
+          <bt:Image id="IconVSTO.32" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_32.png"/>
+          <bt:Image id="IconVSTO.80" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_80.png"/>
+          <bt:Image id="IconRed.16" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_16.png"/>
+          <bt:Image id="IconRed.32" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_32.png"/>
+          <bt:Image id="IconRed.80" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_red_80.png"/>
+          <bt:Image id="IconGreen.16" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_green_16.png"/>
+          <bt:Image id="IconGreen.32" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_green_32.png"/>
+          <bt:Image id="IconGreen.80" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/MesArchives_green_80.png"/>
+        </bt:Images>
+        <bt:Urls>
+          <!-- Page des fonctions des boutons -->
+          <bt:Url id="Commands.Url" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/commands/commands.html"/>
+          <!-- Page du volet + runtime -->
+          <bt:Url id="Taskpane.Url" DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/taskpane/taskpane.html"/>
+        </bt:Urls>
+        <!-- Textes courts : noms des boutons -->
+        <bt:ShortStrings>
+          <bt:String id="GroupLabel" DefaultValue="Mes Archives BdF"/>
+          <bt:String id="archivesLabel" DefaultValue="Mes Archives"/>
+        </bt:ShortStrings>
+        <!-- Textes longs : infobulles au survol des boutons -->
+        <bt:LongStrings>
+        <bt:String id="archivesDesc" DefaultValue="Ouvrir le popup Mes Archives : charger/décharger les PST 2021-2024 (rouge = indisponible, vert = disponible)"/>
+        </bt:LongStrings>
+      </Resources>
+
+    </VersionOverrides>
+  </VersionOverrides>
+</OfficeApp>

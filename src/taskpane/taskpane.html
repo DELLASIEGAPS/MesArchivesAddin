@@ -1,13 +1,27 @@
-
-<button id="btn-archive-2021" class="archive-btn" onclick="restoreArchiveLocal(2021)">
-    <span class="icon"></span> Archives 2021
-</button>
-<button id="btn-archive-2022" class="archive-btn" onclick="restoreArchiveLocal(2022)">
-    <span class="icon"></span> Archives 2022
-</button>
-<button id="btn-archive-2023" class="archive-btn" onclick="restoreArchiveLocal(2023)">
-    <span class="icon"></span> Archives 2023
-</button>
-<button id="btn-archive-2024" class="archive-btn" onclick="restoreArchiveLocal(2024)">
-    <span class="icon"></span> Archives 2024
-</button>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mes Archives</title>
+  <link rel="stylesheet" href="taskpane.css">
+  <script src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
+  <script src="../archives-config.js"></script>
+</head>
+<body>
+  <main>
+    <header>
+      <img src="../MesArchives_red_32.png" alt="" width="32" height="32">
+      <div>
+        <h1>Mes Archives</h1>
+        <p>État des archives PST</p>
+      </div>
+    </header>
+    <section id="archives" aria-live="polite"></section>
+    <p id="sync-status" role="status"></p>
+    <a id="upload-pst" class="button" target="_blank" rel="noopener noreferrer">Importer un PST dans OneDrive</a>
+    <p class="hint">Déposez le PST dans le dossier OneDrive surveillé par le flux Power Automate pour le copier vers Azure Files.</p>
+  </main>
+  <script src="taskpane.js"></script>
+</body>
+</html>
