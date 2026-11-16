@@ -20,9 +20,10 @@ Function, and the prototype has not been validated end-to-end against a live mai
   metadata. It is not equivalent to mounting a PST or Microsoft's Purview PST import.
 - Loading can partially import messages. There is no durable per-message
   idempotency or recovery, and a retry can create duplicates.
-- Unloading deletes the mailbox folder identified by its display name. That folder
-  may contain unrelated messages or subfolders; do not use this operation until
-  ownership and safe deletion have been designed and verified.
+- Unloading deletes the marked MesArchives mailbox folder and all of its contents.
+  The HTTP endpoint requires `confirmDelete: true`; folders without the
+  MesArchives ownership marker are never reused or deleted. User-added content
+  inside a marked archive folder is also deleted.
 - The import runs synchronously in an HTTP request. Azure's HTTP response timeout
   can occur after 230 seconds even with a longer function timeout; long imports
   need a durable asynchronous design.
