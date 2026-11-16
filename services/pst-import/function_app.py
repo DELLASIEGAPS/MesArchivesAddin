@@ -62,6 +62,8 @@ def archive(req: func.HttpRequest) -> func.HttpResponse:
         return _reply(400, {"ok": False, "error": "corps invalide"})
     if year not in YEARS or action not in ("load", "unload"):
         return _reply(400, {"ok": False, "error": "annee ou action invalide"})
+    if action == "unload" and body.get("confirmDelete") is not True:
+        return _reply(400, {"ok": False, "error": "confirmation de suppression requise"})
     obo = MSAL.acquire_token_on_behalf_of(auth[7:], SCOPES)
     if "access_token" not in obo:
         return _reply(403, {"ok": False, "error": "consentement ou OBO refusé"})
