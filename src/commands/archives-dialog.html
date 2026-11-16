@@ -194,7 +194,8 @@
           const url = webUrl();
           const r = await fetch(url, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            // text/plain évite le preflight CORS, que le déclencheur HTTP Power Automate refuse.
+            headers: { "Content-Type": "text/plain" },
             body: JSON.stringify({ annee: Number(year), Monte: target, Couleur: target ? "Vert" : "Rouge" })
           });
           if (!r.ok) throw new Error("HTTP " + r.status);
