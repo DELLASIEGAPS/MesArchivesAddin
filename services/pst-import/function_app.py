@@ -32,9 +32,13 @@ def _reply(status: int, body: dict) -> func.HttpResponse:
 
 def _claims(token: str) -> dict:
     key = JWKS.get_signing_key_from_jwt(token).key
+    # Jetons v1 (sts.windows.net) ou v2 selon requestedAccessTokenVersion de l'app (partagée avec Herisson).
     claims = jwt.decode(token, key, algorithms=["RS256"],
-                        audience=[f"api://{CLIENT_ID}", f"api://dellasiegaps.github.io/{CLIENT_ID}"],
-                        issuer=f"https://login.microsoftonline.com/{TENANT}/v2.0")
+                        audience=[f"api://{CLIENT_ID}", CLIENT_ID, f"api://dellasiegaps.github.io/{CLIENT_ID}"],
+                        options={"verify_iss": False})
+    if claims.get("iss") not in (f"https://sts.windows.net/{TENANT}/",
+                                 f"https://login.microsoftonline.com/{TENANT}/v2.0"):
+        raise jwt.InvalidIssuerError("émetteur inattendu")
     if "access_as_user" not in claims.get("scp", "").split():
         raise jwt.InvalidTokenError("scope manquant")
     return claims
