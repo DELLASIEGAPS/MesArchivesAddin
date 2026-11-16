@@ -1,1 +1,4 @@
 libpff-python==20261030
+azure-functions
+PyJWT[crypto]
+msal
