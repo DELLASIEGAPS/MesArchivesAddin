@@ -33,7 +33,8 @@ def folder_name(year: str) -> str:
     return f"Archives {year}"
 
 
-def _graph(token: str, method: str, url: str, body: dict | None = None, raw: bool = False):
+def _graph(token: str, method: str, url: str, body: dict | None = None,
+           download_to: Path | None = None):
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(
         url, data=data, method=method,
@@ -41,8 +42,11 @@ def _graph(token: str, method: str, url: str, body: dict | None = None, raw: boo
     )
     try:
         with urllib.request.urlopen(req, timeout=60) as resp:
-            if raw:
-                return resp
+            if download_to is not None:
+                with download_to.open("wb") as out:
+                    while chunk := resp.read(1024 * 1024):
+                        out.write(chunk)
+                return {}
             payload = resp.read()
             return json.loads(payload) if payload else {}
     except urllib.error.HTTPError as error:
@@ -66,10 +70,7 @@ def ensure_folder(token: str, name: str, parent: str | None = None) -> str:
 
 def download_pst(token: str, year: str, dest: Path) -> None:
     path = urllib.parse.quote(f"{ONEDRIVE_FOLDER}/{pst_name(year)}")
-    resp = _graph(token, "GET", f"{GRAPH}/me/drive/root:/{path}:/content", raw=True)
-    with resp, open(dest, "wb") as out:
-        while chunk := resp.read(1024 * 1024):
-            out.write(chunk)
+    _graph(token, "GET", f"{GRAPH}/me/drive/root:/{path}:/content", download_to=dest)
 
 
 def load_archive(token: str, mailbox: str, year: str,
