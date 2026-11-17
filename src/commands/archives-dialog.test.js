@@ -52,7 +52,7 @@ function response(data, status = 200) {
   return { ok: status < 400, status, json: async () => data };
 }
 
-test("reads mounted state when the dialog opens", async () => {
+test("lit l Etat monte lorsque la boite de dialogue s ouvre", async () => {
   const dialog = createDialog(async (_url, options) => {
     const { fileName } = JSON.parse(options.body);
     return response({ ok: true, exists: true, mounted: fileName === "ADR.pst" });
@@ -62,7 +62,7 @@ test("reads mounted state when the dialog opens", async () => {
   assert.equal(dialog.state("2021"), false);
 });
 
-test("confirms mounting with the agent before reporting success", async () => {
+test("confirme le montage avec l agent avant de signaler le succes", async () => {
   let mounted = false;
   const routes = [];
   const dialog = createDialog(async (url) => {
@@ -82,7 +82,7 @@ test("confirms mounting with the agent before reporting success", async () => {
   assert.equal(dialog.messages[0].states["2024"], true);
 });
 
-test("confirms unmounting a previously mounted archive", async () => {
+test("confirme le demontage d une archive precedemment montee", async () => {
   let mounted = true;
   const routes = [];
   const dialog = createDialog(async (url) => {
@@ -102,7 +102,7 @@ test("confirms unmounting a previously mounted archive", async () => {
   assert.equal(dialog.messages[0].states["2024"], false);
 });
 
-test("does not report success when the resulting state is not confirmed", async () => {
+test("ne signale pas de succes lorsque Etat resultant n est pas confirme.", async () => {
   const dialog = createDialog(async (url) => {
     if (new URL(url).pathname === "/mount-pst") return response({ ok: true });
     return response({ ok: true, exists: true, mounted: false });
@@ -114,9 +114,9 @@ test("does not report success when the resulting state is not confirmed", async 
   assert.equal(dialog.messages.length, 0);
 });
 
-test("keeps state unknown and reports errors if mounting cannot be confirmed", async () => {
+test("Etat inconnu et signale les erreurs si le montage ne peut etre confirme.", async () => {
   const dialog = createDialog(async (url) => {
-    if (new URL(url).pathname === "/mount-pst") throw new TypeError("network error");
+    if (new URL(url).pathname === "/mount-pst") throw new TypeError("Erreur reseau");
     return response({ ok: true, exists: true, mounted: false });
   });
   await dialog.start();
@@ -126,7 +126,7 @@ test("keeps state unknown and reports errors if mounting cannot be confirmed", a
   assert.equal(dialog.messages.length, 0);
 });
 
-test("does not perform an action if the state changed outside the dialog", async () => {
+test("n effectue aucune action si Etat a change en dehors du dialogue", async () => {
   let mounted = false;
   const routes = [];
   const dialog = createDialog(async (url) => {
@@ -141,8 +141,8 @@ test("does not perform an action if the state changed outside the dialog", async
   assert.match(dialog.message(), /état a changé/);
 });
 
-test("reports an unavailable agent instead of marking archives unmounted", async () => {
-  const dialog = createDialog(async () => { throw new Error("unavailable"); });
+test("signale un agent indisponible au lieu de marquer les archives comme non montees", async () => {
+  const dialog = createDialog(async () => { throw new Error("Indisponible"); });
   await dialog.start();
   assert.equal(dialog.state("2024"), undefined);
   assert.match(dialog.message(), /État indisponible/);
