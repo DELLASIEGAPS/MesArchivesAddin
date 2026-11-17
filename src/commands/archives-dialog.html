@@ -106,13 +106,15 @@
       return data;
     }
 
-    async function readState(year) {
-      if (isWeb()) {
-        const r = await fetch(webUrl(year));
-        if (!r.ok) throw new Error("HTTP " + r.status);
-        const d = await r.json();
-        return { exists: d.fileExists === true, mounted: d.fileExists === true && d.mounted === true };
-      }
+    async function webState(year) {
+      const r = await fetch(webUrl(year));
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const d = await r.json();
+      const exists = d.fileExists === true;
+      return { exists, mounted: exists && d.mounted === true, local: null, cloud: exists, outlookClosed: false, via: "web" };
+    }
+
+    async function agentState(year) {
       const d = await agent("/state", year);
       if (typeof d.exists !== "boolean" || typeof d.mounted !== "boolean") {
         throw new Error("État invalide renvoyé par l'agent PST.");
@@ -122,7 +124,8 @@
         mounted: d.exists === true && d.mounted === true,
         local: typeof d.local === "boolean" ? d.local : d.exists === true,
         cloud: d.cloud === true ? true : null,
-        outlookClosed: d.outlookRunning === false
+        outlookClosed: d.outlookRunning === false,
+        via: "agent"
       };
       if (CONFIG.webStatusEndpoint) {
         try {
@@ -135,6 +138,17 @@
       return state;
     }
 
+    // Même vue Outlook Web et Outlook classique : l'agent local d'abord, le service Web en secours.
+    async function readState(year) {
+      try {
+        return await agentState(year);
+      } catch (error) {
+        if (!isWeb() || !CONFIG.webStatusEndpoint) throw error;
+        console.error("Agent PST indisponible, repli sur le service Web.", error);
+        return webState(year);
+      }
+    }
+
     function presenceDetail(state) {
       const text = presenceText(state);
       return state.outlookClosed && !state.mounted ? text + " (Outlook fermé)" : text;
@@ -142,6 +156,7 @@
 
     function presenceText(state) {
       if (state.mounted) return "Monté dans Outlook";
+      if (state.local === null) return state.cloud ? "PST présent dans OneDrive cloud (local non vérifié)" : "PST introuvable dans le cloud (local non vérifié)";
       if (state.cloud === null) return state.local ? "PST présent en local (cloud non vérifié)" : "PST introuvable en local (cloud non vérifié)";
       if (state.local && state.cloud) return "PST présent en local et dans OneDrive cloud";
       if (state.local) return "PST présent en local uniquement, absent du cloud";
@@ -159,7 +174,7 @@
         try {
           const state = await readState(year);
           states[year] = state.mounted;
-          details[year] = isWeb() ? (state.mounted ? "Monté dans Outlook" : state.exists ? "PST disponible" : "PST introuvable") : presenceDetail(state);
+          details[year] = presenceDetail(state);
         } catch (error) {
           delete states[year];
           details[year] = "Vérification impossible";
@@ -168,9 +183,7 @@
         }
       }
       msgEl.textContent = failed
-        ? (isWeb()
-          ? "État Web indisponible : vérifiez la configuration du service, puis cliquez sur Actualiser."
-          : "État indisponible : vérifiez que l'agent PST est lancé, puis cliquez sur Actualiser.")
+        ? "État indisponible : vérifiez que l'agent PST est lancé, puis cliquez sur Actualiser."
         : "";
       refreshing = false;
       render();
@@ -190,7 +203,7 @@
         if (target && !st.exists) throw new Error(st.cloud === true
           ? "PST présent uniquement dans le cloud (" + ARCHIVES[year] + ") : attendez la synchronisation OneDrive locale."
           : "PST introuvable (" + ARCHIVES[year] + ") en local" + (st.cloud === false ? " et dans le cloud" : "") + ", vérifiez OneDrive.");
-        if (isWeb()) {
+        if (st.via === "web") {
           const url = webUrl();
           const r = await fetch(url, {
             method: "POST",
@@ -211,7 +224,7 @@
         delete states[year];
         details[year] = "État à vérifier";
         const reason = e.name === "TypeError"
-          ? (isWeb() ? "service Web injoignable." : "agent PST local injoignable (127.0.0.1:45731).")
+          ? "agent PST local injoignable (127.0.0.1:45731)."
           : e.message;
         msgEl.textContent = year + " : " + reason + " Cliquez sur Actualiser.";
       }
