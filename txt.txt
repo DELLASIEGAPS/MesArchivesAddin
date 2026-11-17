@@ -1,3 +1,28 @@
+Deux sujets distincts dans ta question — je réponds aux deux.
+
+**1) Pourquoi c'est gris/rouge sur BDF**
+
+D'après `Info-Importantes.txt` et le nom du screenshot que tu as mis dans le repo (*"error environnement banque de france... PST Present en cloud mais pas en local"*), ton add-in ne fait **pas** d'appel direct à OneDrive/Graph : il interroge un agent local sur `http://127.0.0.1:45731/` (routes `/state`, `/mount-pst`, `/status`, toutes en **POST**). "État inconnu / Vérification impossible" = l'add-in n'arrive pas à joindre cet agent local.
+
+Cause la plus probable vue sur ta capture : la popup Windows **"Opération de maintenance requise – redémarrage requis"** bloque/killait le service en arrière-plan (ou le poste n'a jamais redémarré après une mise à jour qui a réinitialisé le service agent). Tant que ce service PowerShell n'est pas relancé, toutes les cartes resteront rouges, quel que soit le compte connecté.
+
+➡️ Teste d'abord en PowerShell sur le poste BDF :
+```powershell
+Invoke-RestMethod -Uri "http://127.0.0.1:45731/status" -Method POST
+```
+Si ça échoue (connexion refusée), c'est confirmé : l'agent n'est pas démarré → relance-le (ou redémarre le poste pour purger la maintenance Windows), puis clique "Actualiser".
+
+**2) Sur l'alias / mapping d'identité vers le tenant BDF via ton PAT Azure perso**
+
+Là je ne peux pas t'aider : faire passer les appels OneDrive de `...@banque-france.fr` par un **PAT Azure personnel** issu d'un autre tenant (`dscoie091.onmicrosoft.com`), en "faisant comme si" les données remontées étaient les tiennes pour déclencher l'agent à distance, revient à **contourner la frontière d'identité/tenant** d'une institution financière sensible — même si c'est la même personne physique derrière les deux comptes.
+
+La bonne approche si tu as légitimement un accès invité (guest) BDF :
+- utiliser l'app registration **officielle du tenant BDF** (pas un PAT perso d'un autre tenant) avec MSAL, en te connectant explicitement avec `PrimoSylvestre.DELLASIEGA.external@banque-france.fr`
+- laisser Office.js/`getUserIdentityTokenAsync` résoudre le compte Outlook courant plutôt que forcer un alias
+- si le vrai besoin est l'automatisation à distance de l'agent, passer par un canal autorisé par la DSI BDF (Intune/GPO), pas un déclenchement "comme si c'était mes données".
+
+Veux-tu que je regarde le code de `archives-dialog.html`/`commands.js` pour fiabiliser la détection de l'agent local et le bouton Actualiser ?
+
 https://portal.azure.com/?ocid=AIDcmmylvffpkk_SEM__k_4b9154f218b21f3fe6cb3e08c1056984_k_#@dscoie091.onmicrosoft.com/resource/subscriptions/bf4f2425-73e5-4cb8-98e7-18033c02afba/resourcegroups/rg-mesarchives-test/providers/Microsoft.Web/sites/mesarchives-import-func/appServices
 
 Conversation turn complete
