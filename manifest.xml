@@ -70,6 +70,11 @@
         <RequestedHeight>450</RequestedHeight>
       </DesktopSettings>
     </Form>
+    <Form xsi:type="ItemEdit">
+      <DesktopSettings>
+        <SourceLocation DefaultValue="https://dellasiegaps.github.io/MesArchivesAddin/src/taskpane/taskpane.html"/>
+      </DesktopSettings>
+    </Form>
   </FormSettings>
 
   <!-- Droits demandes : lire et ecrire dans la boite mail (necessaire pour charger/decharger le PST) -->
@@ -102,6 +107,19 @@
               <Group id="MesArchivesGroup">
                 <Label resid="GroupLabel"/>
                 <Control xsi:type="Button" id="openArchives">
+                  <Label resid="archivesLabel"/>
+                  <Supertip><Title resid="archivesLabel"/><Description resid="archivesDesc"/></Supertip>
+                  <Icon><bt:Image size="16" resid="IconVSTO.16"/><bt:Image size="32" resid="IconVSTO.32"/><bt:Image size="80" resid="IconVSTO.80"/></Icon>
+                  <Action xsi:type="ExecuteFunction"><FunctionName>openArchives</FunctionName></Action>
+                </Control>
+              </Group>
+            </OfficeTab>
+          </ExtensionPoint>
+          <ExtensionPoint xsi:type="MessageComposeCommandSurface">
+            <OfficeTab id="TabDefault">
+              <Group id="MesArchivesGroupCompose">
+                <Label resid="GroupLabel"/>
+                <Control xsi:type="Button" id="openArchivesCompose">
                   <Label resid="archivesLabel"/>
                   <Supertip><Title resid="archivesLabel"/><Description resid="archivesDesc"/></Supertip>
                   <Icon><bt:Image size="16" resid="IconVSTO.16"/><bt:Image size="32" resid="IconVSTO.32"/><bt:Image size="80" resid="IconVSTO.80"/></Icon>
@@ -179,6 +197,19 @@
                     <Action xsi:type="ExecuteFunction"><FunctionName>openArchives</FunctionName></Action>
                   </Control>
 
+                </Group>
+              </OfficeTab>
+            </ExtensionPoint>
+            <ExtensionPoint xsi:type="MessageComposeCommandSurface">
+              <OfficeTab id="TabDefault">
+                <Group id="MesArchivesGroupCompose">
+                  <Label resid="GroupLabel"/>
+                  <Control xsi:type="Button" id="openArchivesCompose">
+                    <Label resid="archivesLabel"/>
+                    <Supertip><Title resid="archivesLabel"/><Description resid="archivesDesc"/></Supertip>
+                    <Icon><bt:Image size="16" resid="IconVSTO.16"/><bt:Image size="32" resid="IconVSTO.32"/><bt:Image size="80" resid="IconVSTO.80"/></Icon>
+                    <Action xsi:type="ExecuteFunction"><FunctionName>openArchives</FunctionName></Action>
+                  </Control>
                 </Group>
               </OfficeTab>
             </ExtensionPoint>
