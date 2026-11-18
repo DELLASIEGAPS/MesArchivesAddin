@@ -170,6 +170,7 @@
       msgEl.textContent = "Vérification des archives…";
       render();
       let failed = false;
+      let lastError = "";
       for (const year of Object.keys(ARCHIVES)) {
         try {
           const state = await readState(year);
@@ -179,11 +180,14 @@
           delete states[year];
           details[year] = "Vérification impossible";
           failed = true;
+          lastError = error && error.message ? error.message : String(error);
           console.error("État de l'archive " + year + " indisponible.", error);
         }
       }
       msgEl.textContent = failed
-        ? "Indisponible : lancez agent & cliquez sur Actualiser...."
+        ? isWeb() && CONFIG.webStatusEndpoint
+          ? "État indisponible : service Web injoignable (" + lastError + "). Cliquez sur Actualiser."
+          : "État indisponible : lancez l'agent PST local puis cliquez sur Actualiser."
         : "";
       refreshing = false;
       render();

@@ -1,31 +1,43 @@
-# Prompt Power Automate – Mes Archives (flip-flop Disponible / Indisponible)
+# Flux Power Automate « MesArchives-Statut-PST » (Outlook Web)
 
-## Prompt à coller dans Copilot de Power Automate
+Le flux ne stocke l'état « monté » que sous forme de **fichier marqueur** OneDrive : présent = vert, absent = rouge.
+Aucune liste SharePoint n'est nécessaire. Outlook Web ne peut pas monter un PST : le vert signifie « marqueur posé ».
 
-> Crée un flux cloud instantané « MesArchives-Statut-PST » déclenché par « Lorsqu'une requête HTTP est reçue »
-> (méthodes GET et POST, authentification Microsoft Entra ID, jamais de clé dans le code de l'add-in).
->
-> Schéma JSON du POST : `{ "annee": number, "Monte": boolean, "Couleur": "Vert"|"Rouge", "sharePointPath": string }`.
-> GET : paramètre `year` (2021 à 2024).
->
-> **GET** : action SharePoint « Lister les fichiers du dossier » sur `Shared Documents/PST`, cherche `<year>.pst`
-> (pour 2024 : `ADR.pst`). Réponds 200 avec
-> `{ "fileExists": true|false, "mounted": <colonne Monte>, "couleur": <colonne Couleur> }`.
->
-> **POST** : valide `annee` entre 2021 et 2024, puis « Mettre à jour l'élément » dans la liste SharePoint
-> « ArchivesPST » (colonnes : Annee, Monte [Oui/Non], Couleur [Rouge/Vert], DerniereMiseAJour = utcNow()).
-> Réponds 200 `{ "ok": true, "annee": ..., "Monte": ..., "Couleur": ... }`, sinon 400/500 avec `{ "ok": false, "error": "..." }`.
-> Ajoute l'en-tête CORS `Access-Control-Allow-Origin: https://dellasiegaps.github.io`.
+## Déclencheur
+« Lorsqu'une requête HTTP est reçue » : Who can trigger = **Anyone**, méthode **vide** (GET et POST), schéma vide.
+Régénérer l'URL signée si elle a été exposée, puis la reporter dans `src/archives-config.js` (`webStatusEndpoint`).
 
-## Règle flip-flop
-- Disponible = `Monte = true` = **Vert** ; Indisponible = `Monte = false` = **Rouge**.
-- Le bouton ne passe au vert qu'après montage réussi du PST (Outlook bureau : agent local `tools/local-pst-agent.ps1` ;
-  Outlook Web : vérification `fileExists` puis POST).
+## Variables (Initialiser une variable)
+| Nom | Type | Valeur |
+|---|---|---|
+| varBody | Objet | `if(empty(string(triggerBody())), json('{}'), json(string(triggerBody())))` |
+| varYear | Chaîne | `coalesce(triggerOutputs()?['queries']?['year'], string(variables('varBody')?['annee']))` |
+| varFileName | Chaîne | `if(equals(variables('varYear'),'2024'),'ADR.pst',concat('ADR_',variables('varYear'),'.pst'))` |
+| varIsRead | Booléen | `not(empty(triggerOutputs()?['queries']?['year']))` |
 
-## Après création
-Copier l'URL HTTPS du flux dans `src/archives-config.js` → `webStatusEndpoint`.
+## Condition « Annee valide »
+`and(greaterOrEquals(int(variables('varYear')),2021), lessOrEquals(int(variables('varYear')),2024))` doit être vrai.
+Si non : Réponse 400, corps `{"ok":false,"error":"annee invalide"}`.
+Supprimer toute condition « Action valide » (l'add-in n'envoie jamais `action`).
 
-## Comportement des boutons (v2.0.8.0)
-Chaque année a deux boutons : `archiveAAAA_mount` (rouge, « Indisponible ») et `archiveAAAA_unmount` (vert, « Disponible »).
-Un seul est visible à la fois (repli sur activé/désactivé si Outlook refuse `visible`).
-Au démarrage, l'état est lu depuis la présence réelle du PST : agent `/state` (bureau) ou GET du flux (Web).
+## Branche Oui
+1. OneDrive « Lister les fichiers du dossier » (dossier `/Personnel`) ; noms d'action sans accents.
+2. « Filtrer le tableau » **Filtrer_PST** sur la sortie de la liste : `item()?['Name']` est égal à `variables('varFileName')`.
+3. « Filtrer le tableau » **Filtrer_marqueur** : `item()?['Name']` est égal à `concat('monte_', variables('varYear'), '.flag')`.
+4. Condition `variables('varIsRead')` est égal à `true`.
+
+### Oui (GET)
+Réponse 200, corps :
+`json(concat('{"fileExists":', string(greater(length(body('Filtrer_PST')), 0)), ',"mounted":', string(greater(length(body('Filtrer_marqueur')), 0)), '}'))`
+
+### Non (POST) : condition `variables('varBody')?['Monte']` est égal à `true`
+- Oui : si `length(body('Filtrer_marqueur'))` est égal à 0, OneDrive « Créer un fichier » : dossier `/Personnel`, nom `concat('monte_', variables('varYear'), '.flag')`, contenu `1`.
+- Non : « Appliquer à chacun » sur `body('Filtrer_marqueur')` avec « Supprimer le fichier » sur `items('Appliquer_a_chacun')?['Id']`.
+- Réponse 200, corps `{"ok":true}`.
+
+## En-têtes de **toutes** les réponses (200 et 400)
+`Content-Type: application/json` et `Access-Control-Allow-Origin: https://dellasiegaps.github.io`.
+Les booléens s'écrivent avec `string(...)`, jamais `toLower`.
+
+## Test
+Ouvrir `<URL du flux>&year=2024` : attendre `{"fileExists":true,"mounted":false}`.

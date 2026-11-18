@@ -84,6 +84,8 @@
   <Rule xsi:type="RuleCollection" Mode="Or">
     <Rule xsi:type="ItemIs" ItemType="Message" FormType="Read"/>
     <Rule xsi:type="ItemIs" ItemType="Message" FormType="Edit"/>
+    <Rule xsi:type="ItemIs" ItemType="Appointment" FormType="Read"/>
+    <Rule xsi:type="ItemIs" ItemType="Appointment" FormType="Edit"/>
   </Rule>
 
   <!-- ===== PARTIE 2 : BLOC EXTERNE V1.0 (obligatoire pour le schema) ===== -->
@@ -120,6 +122,32 @@
               <Group id="MesArchivesGroupCompose">
                 <Label resid="GroupLabel"/>
                 <Control xsi:type="Button" id="openArchivesCompose">
+                  <Label resid="archivesLabel"/>
+                  <Supertip><Title resid="archivesLabel"/><Description resid="archivesDesc"/></Supertip>
+                  <Icon><bt:Image size="16" resid="IconVSTO.16"/><bt:Image size="32" resid="IconVSTO.32"/><bt:Image size="80" resid="IconVSTO.80"/></Icon>
+                  <Action xsi:type="ExecuteFunction"><FunctionName>openArchives</FunctionName></Action>
+                </Control>
+              </Group>
+            </OfficeTab>
+          </ExtensionPoint>
+                  <ExtensionPoint xsi:type="AppointmentOrganizerCommandSurface">
+            <OfficeTab id="TabDefault">
+              <Group id="MesArchivesGroupOrg">
+                <Label resid="GroupLabel"/>
+                <Control xsi:type="Button" id="openArchivesOrg">
+                  <Label resid="archivesLabel"/>
+                  <Supertip><Title resid="archivesLabel"/><Description resid="archivesDesc"/></Supertip>
+                  <Icon><bt:Image size="16" resid="IconVSTO.16"/><bt:Image size="32" resid="IconVSTO.32"/><bt:Image size="80" resid="IconVSTO.80"/></Icon>
+                  <Action xsi:type="ExecuteFunction"><FunctionName>openArchives</FunctionName></Action>
+                </Control>
+              </Group>
+            </OfficeTab>
+          </ExtensionPoint>
+          <ExtensionPoint xsi:type="AppointmentAttendeeCommandSurface">
+            <OfficeTab id="TabDefault">
+              <Group id="MesArchivesGroupAtt">
+                <Label resid="GroupLabel"/>
+                <Control xsi:type="Button" id="openArchivesAtt">
                   <Label resid="archivesLabel"/>
                   <Supertip><Title resid="archivesLabel"/><Description resid="archivesDesc"/></Supertip>
                   <Icon><bt:Image size="16" resid="IconVSTO.16"/><bt:Image size="32" resid="IconVSTO.32"/><bt:Image size="80" resid="IconVSTO.80"/></Icon>
@@ -205,6 +233,32 @@
                 <Group id="MesArchivesGroupCompose">
                   <Label resid="GroupLabel"/>
                   <Control xsi:type="Button" id="openArchivesCompose">
+                    <Label resid="archivesLabel"/>
+                    <Supertip><Title resid="archivesLabel"/><Description resid="archivesDesc"/></Supertip>
+                    <Icon><bt:Image size="16" resid="IconVSTO.16"/><bt:Image size="32" resid="IconVSTO.32"/><bt:Image size="80" resid="IconVSTO.80"/></Icon>
+                    <Action xsi:type="ExecuteFunction"><FunctionName>openArchives</FunctionName></Action>
+                  </Control>
+                </Group>
+              </OfficeTab>
+            </ExtensionPoint>
+                      <ExtensionPoint xsi:type="AppointmentOrganizerCommandSurface">
+              <OfficeTab id="TabDefault">
+                <Group id="MesArchivesGroupOrg">
+                  <Label resid="GroupLabel"/>
+                  <Control xsi:type="Button" id="openArchivesOrg">
+                    <Label resid="archivesLabel"/>
+                    <Supertip><Title resid="archivesLabel"/><Description resid="archivesDesc"/></Supertip>
+                    <Icon><bt:Image size="16" resid="IconVSTO.16"/><bt:Image size="32" resid="IconVSTO.32"/><bt:Image size="80" resid="IconVSTO.80"/></Icon>
+                    <Action xsi:type="ExecuteFunction"><FunctionName>openArchives</FunctionName></Action>
+                  </Control>
+                </Group>
+              </OfficeTab>
+            </ExtensionPoint>
+            <ExtensionPoint xsi:type="AppointmentAttendeeCommandSurface">
+              <OfficeTab id="TabDefault">
+                <Group id="MesArchivesGroupAtt">
+                  <Label resid="GroupLabel"/>
+                  <Control xsi:type="Button" id="openArchivesAtt">
                     <Label resid="archivesLabel"/>
                     <Supertip><Title resid="archivesLabel"/><Description resid="archivesDesc"/></Supertip>
                     <Icon><bt:Image size="16" resid="IconVSTO.16"/><bt:Image size="32" resid="IconVSTO.32"/><bt:Image size="80" resid="IconVSTO.80"/></Icon>
