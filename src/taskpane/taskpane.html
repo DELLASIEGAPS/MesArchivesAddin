@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Mes Archives</title>
   <link rel="stylesheet" href="taskpane.css">
-  <script src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
   <script src="../archives-config.js"></script>
 </head>
 <body>
@@ -18,9 +17,8 @@
       </div>
     </header>
     <section id="archives" aria-live="polite"></section>
-    <p id="sync-status" role="status"></p>
-    <a id="upload-pst" class="button" target="_blank" rel="noopener noreferrer">Importer un PST dans OneDrive</a>
-    <p class="hint">Déposez le PST dans le dossier OneDrive surveillé par le flux Power Automate pour le copier vers Azure Files.</p>
+    <a id="agent-view" class="button" target="_blank" rel="noopener noreferrer">Voir l'arborescence locale</a>
+    <p class="hint">Affichage local uniquement : l'agent PowerShell tourne sur ce poste et aucune donnée ne quitte la machine.</p>
   </main>
   <script src="taskpane.js"></script>
 </body>

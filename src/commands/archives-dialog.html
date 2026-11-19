@@ -89,7 +89,7 @@
       const resp = await fetch(PST_AGENT + route, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileName: ARCHIVES[year], displayName: DISPLAY_NAMES[year], sharePointPath: CONFIG.pstUrls && CONFIG.pstUrls[year] }),
+        body: JSON.stringify({ fileName: ARCHIVES[year], displayName: DISPLAY_NAMES[year] }),
         signal: AbortSignal.timeout(route === "/mount-pst" ? 600000 : 60000)
       });
       const data = await resp.json();
