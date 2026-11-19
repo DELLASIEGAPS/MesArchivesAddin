@@ -1,115 +1,52 @@
-Office.onReady(() => {});
+const STATE_KEY = "archivesMounted";
+const DIALOG_URL = "https://dellasiegaps.github.io/MesArchivesAddin/src/commands/archives-dialog.html";
 
-const GRAPH = "https://graph.microsoft.com/v1.0";
-const TOGGLE_YEARS = ["2024"];
-const archivePath = (year) => `/me/drive/root:/MesArchives/${year}:/children`;
-const storageKey = (year) => `archive${year}`;
+let dialog = null;
 
-function getToken() {
-    return Office.auth.getAccessToken({ allowSignInPrompt: true, allowConsentPrompt: true });
-}
-
-async function graph(path, token, options = {}) {
-    const response = await fetch(`${GRAPH}${path}`, {
-        ...options,
-        headers: { Authorization: "Bearer " + token, ...(options.headers || {}) }
-    });
-    if (!response.ok) {
-        throw new Error(`Graph ${response.status} on ${path}`);
+function saveStates(states) {
+  Office.context.roamingSettings.set(STATE_KEY, states);
+  Office.context.roamingSettings.saveAsync((result) => {
+    if (result.status !== Office.AsyncResultStatus.Succeeded) {
+      console.error("Impossible d'enregistrer l'état des archives.", result.error);
     }
-    return response.status === 204 ? null : response.json();
+  });
 }
 
-function toBase64(text) {
-    return btoa(unescape(encodeURIComponent(text)));
+function onDialogMessage(arg) {
+  let msg;
+  try { msg = JSON.parse(arg.message); } catch (_) { return; }
+  if (msg.type === "states") saveStates(msg.states);
+  if (msg.type === "close" && dialog) {
+    dialog.close();
+    dialog = null;
+  }
 }
 
-function readState(year) {
-    try { return localStorage.getItem(storageKey(year)); } catch (e) { return null; }
-}
-
-function writeState(year, value) {
-    try {
-        if (value) { localStorage.setItem(storageKey(year), value); }
-        else { localStorage.removeItem(storageKey(year)); }
-    } catch (e) { console.error(e); }
-}
-
-// Red/green toggle: mounted => "unmount" button enabled, "mount" disabled; unmounted => reverse.
-async function setMounted(year, mounted) {
-    if (!TOGGLE_YEARS.includes(year) || !Office.ribbon || !Office.ribbon.requestUpdate) { return; }
-    try {
-        await Office.ribbon.requestUpdate({
-            tabs: [{
-                id: "TabDefault",
-                groups: [{
-                    id: "MesArchivesGroup",
-                    controls: [
-                        { id: `archive${year}_mount`, enabled: !mounted },
-                        { id: `archive${year}_unmount`, enabled: mounted }
-                    ]
-                }]
-            }]
-        });
-    } catch (e) {
-        console.error("Ribbon update failed:", e);
+// Ouvre le popup unique qui gère les 4 archives (flip-flop rouge/vert).
+function openArchives(event) {
+  if (dialog) {
+    dialog.close();
+    dialog = null;
+  }
+  Office.context.ui.displayDialogAsync(
+    DIALOG_URL,
+    { height: 50, width: 45, displayInIframe: false, promptBeforeOpen: false },
+    (result) => {
+      if (result.status === Office.AsyncResultStatus.Succeeded) {
+        dialog = result.value;
+        dialog.addEventHandler(Office.EventType.DialogMessageReceived, onDialogMessage);
+        dialog.addEventHandler(Office.EventType.DialogEventReceived, () => { dialog = null; });
+      } else {
+        console.error("Ouverture du popup impossible.", result.error);
+      }
+      event.completed();
     }
+  );
 }
 
-async function mount(year, event) {
-    try {
-        const token = await getToken();
-        const files = await graph(archivePath(year), token);
-        const emls = (files.value || []).filter((f) => /\.eml$/i.test(f.name) && f["@microsoft.graph.downloadUrl"]);
-        const folder = await graph("/me/mailFolders", token, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ displayName: `Archives ${year}` })
-        });
-        writeState(year, folder.id);
-        for (const file of emls) {
-            try {
-                const download = await fetch(file["@microsoft.graph.downloadUrl"]);
-                if (!download.ok) { throw new Error(`Download ${download.status}`); }
-                const mime = await download.text();
-                await graph(`/me/mailFolders/${folder.id}/messages`, token, {
-                    method: "POST",
-                    headers: { "Content-Type": "text/plain" },
-                    body: toBase64(mime)
-                });
-            } catch (e) {
-                console.error(`Import failed for ${file.name}:`, e);
-            }
-        }
-        await setMounted(year, true);
-    } catch (error) {
-        console.error(`Mount ${year} failed:`, error);
-    }
-    event.completed();
-}
-
-async function unmount(year, event) {
-    try {
-        const id = readState(year);
-        if (id) {
-            const token = await getToken();
-            await graph(`/me/mailFolders/${id}`, token, { method: "DELETE" });
-        }
-        writeState(year, null);
-        await setMounted(year, false);
-    } catch (error) {
-        console.error(`Unmount ${year} failed:`, error);
-    }
-    event.completed();
-}
-
-function openModop(event) {
-    window.open('https://dellasiegaexternal2.github.io/MesArchivesAddin/ModOp_Mes_ARCHIVES.pdf', '_blank');
-    event.completed({ allowEvent: true });
-}
-
-["2021", "2022", "2023", "2024"].forEach((year) => {
-    Office.actions.associate(`mount${year}`, (event) => mount(year, event));
-    Office.actions.associate(`unmount${year}`, (event) => unmount(year, event));
+Office.onReady(() => {
+  Office.actions.associate("openArchives", openArchives);
 });
-Office.actions.associate("openModop", openModop);
+
+// Requis par FunctionFile (manifeste V1_0).
+window.openArchives = openArchives;

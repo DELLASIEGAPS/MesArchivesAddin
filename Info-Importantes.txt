@@ -1,0 +1,232 @@
+Parfait. Maintenant on sait exactement comment parler à ton agent PST.
+
+Ce que l'agent expose réellement
+
+L'agent écoute sur :
+
+http://127.0.0.1:45731/
+
+
+et accepte uniquement :
+
+POST
+
+
+Toutes les autres méthodes :
+
+GET
+
+
+retournent :
+
+{
+  "error": "Method not allowed"
+}
+
+
+C'est exactement ce que ta capture montrait.
+
+Les routes disponibles
+État
+POST http://127.0.0.1:45731/state
+
+
+Payload :
+
+{
+  "fileName": "ADR.pst"
+}
+
+
+Réponse :
+
+{
+  "exists": true,
+  "local": true,
+  "cloud": true,
+  "mounted": true
+}
+
+
+ou :
+
+{
+  "exists": false
+}
+
+Montage PST
+POST http://127.0.0.1:45731/mount-pst
+
+
+Payload :
+
+{
+  "fileName": "ADR.pst",
+  "displayName": "Archives 2024"
+}
+
+
+Action :
+
+$outlook.GetNamespace("MAPI").AddStoreEx(...)
+
+
+Donc :
+
+✅ Monte réellement le PST
+
+✅ Dans Outlook Desktop
+
+✅ Sans VSTO
+
+Démontage PST
+POST http://127.0.0.1:45731/unmount-pst
+
+
+Payload :
+
+{
+  "fileName": "ADR.pst"
+}
+
+
+Action :
+
+RemoveStore(...)
+
+
+Donc :
+
+✅ Démonte le PST
+
+Santé de l'agent
+POST http://127.0.0.1:45731/status
+
+
+Réponse :
+
+{
+  "ok": true,
+  "running": true
+}
+
+
+Tu avais testé :
+
+GET /status
+
+
+ce qui explique le :
+
+405 Method not allowed
+
+Test immédiat
+
+Depuis PowerShell :
+
+Invoke-RestMethod `
+-Uri "http://127.0.0.1:45731/status" `
+-Method POST
+
+
+Puis :
+
+Invoke-RestMethod `
+-Uri "http://127.0.0.1:45731/state" `
+-Method POST `
+-ContentType "application/json" `
+-Body '{"fileName":"ADR.pst"}'
+
+Architecture finale MesArchives
+
+Tu n'as plus besoin de Power Automate Desktop.
+
+Ton Add-in peut parler directement :
+
+Outlook Add-in
+
+↓
+
+Office.js
+
+↓
+
+127.0.0.1:45731
+
+↓
+
+PowerShell
+
+↓
+
+Outlook PST
+
+Exemple JS
+await fetch(
+ "http://127.0.0.1:45731/mount-pst",
+ {
+   method:"POST",
+   headers:{
+      "Content-Type":"application/json"
+   },
+   body:JSON.stringify({
+      fileName:"ADR.pst",
+      displayName:"Archives 2024"
+   })
+ });
+
+Le gros avantage
+
+Ton agent fait déjà :
+
+OneDrive
+
+↓
+
+Copie locale
+
+↓
+
+AddStoreEx()
+
+↓
+
+Rename dossier
+
+↓
+
+Etat monté
+
+↓
+
+Etat démonté
+
+
+Donc :
+
+✅ tu as déjà la partie difficile.
+
+Pour ton POC, je ne passerais même plus par PAD.
+
+Je brancherais directement :
+
+archives-dialog.html
+
+↓
+
+127.0.0.1:45731
+
+↓
+
+mount-pst
+
+↓
+
+unmount-pst
+
+↓
+
+state
+
+
+et tu as quasiment un Mes Archives fonctionnel dans Outlook Desktop.
