@@ -143,7 +143,7 @@
       try {
         return await agentState(year);
       } catch (error) {
-        if (!isWeb() || !CONFIG.webStatusEndpoint) throw error;
+        if (!CONFIG.webStatusEndpoint) throw error;
         console.error("Agent PST indisponible, repli sur le service Web.", error);
         return webState(year);
       }
@@ -185,7 +185,7 @@
         }
       }
       msgEl.textContent = failed
-        ? isWeb() && CONFIG.webStatusEndpoint
+        ? CONFIG.webStatusEndpoint
           ? "État indisponible : service Web injoignable (" + lastError + "). Cliquez sur Actualiser."
           : "État indisponible : lancez l'agent PST local puis cliquez sur Actualiser."
         : "";
@@ -207,6 +207,7 @@
         if (target && !st.exists) throw new Error(st.cloud === true
           ? "PST présent uniquement dans le cloud (" + ARCHIVES[year] + ") : attendez la synchronisation OneDrive locale."
           : "PST introuvable (" + ARCHIVES[year] + ") en local" + (st.cloud === false ? " et dans le cloud" : "") + ", vérifiez OneDrive.");
+        if (st.via === "web" && !isWeb()) throw new Error("Agent PST local injoignable : le montage nécessite l'agent (état affiché via le service Web).");
         if (st.via === "web") {
           const url = webUrl();
           const r = await fetch(url, {
