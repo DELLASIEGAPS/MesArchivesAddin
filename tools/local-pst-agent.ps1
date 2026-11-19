@@ -67,7 +67,7 @@ function Write-Json($res, [int]$status, $obj) {
   $res.StatusCode = $status
   $res.ContentType = "application/json; charset=utf-8"
   Add-CorsHeaders $res
-  $json = ($obj | ConvertTo-Json -Depth 6 -Compress)
+  $json = ($obj | ConvertTo-Json -Depth 16 -Compress)
   $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
   $res.OutputStream.Write($bytes, 0, $bytes.Length)
   $res.Close()
@@ -155,6 +155,68 @@ function Get-PstState([string]$fileName) {
   return $state
 }
 
+# Arborescence du PST monté (dossiers et nombre d'éléments) : lecture locale seule, aucun contenu de message.
+function Get-PstTree([string]$pstPath) {
+  $outlook = Get-RunningOutlook
+  if (-not $outlook) { throw [System.InvalidOperationException]::new("OUTLOOK_NOT_RUNNING") }
+  foreach ($store in $outlook.GetNamespace("MAPI").Stores) {
+    try {
+      if ($store.FilePath -and ($store.FilePath -ieq $pstPath)) {
+        return @{ ok = $true; path = $pstPath; root = (ConvertTo-FolderNode $store.GetRootFolder() 0) }
+      }
+    } catch {}
+  }
+  return @{ ok = $false; code = "NOT_MOUNTED"; error = "PST non monté dans Outlook" }
+}
+
+function ConvertTo-FolderNode($folder, [int]$depth) {
+  $node = @{ name = [string]$folder.Name; count = [int]$folder.Items.Count; children = @() }
+  if ($depth -ge 6) { return $node }
+  foreach ($child in $folder.Folders) {
+    $node.children += ConvertTo-FolderNode $child ($depth + 1)
+  }
+  return $node
+}
+
+$viewPage = @'
+<!doctype html>
+<html lang="fr"><meta charset="utf-8"><title>MesArchives - visualiseur local</title>
+<style>body{font-family:Segoe UI,sans-serif;margin:16px}ul{list-style:none;padding-left:18px}li{margin:2px 0}.n{color:#555}</style>
+<h2>Archives montées (local)</h2>
+<p>Aucune donnée ne quitte ce poste.</p>
+<label>Fichier PST : <input id="f" value="ADR_2022.pst"></label>
+<button id="go">Afficher</button>
+<div id="out"></div>
+<script>
+function render(node, parent) {
+  const li = document.createElement("li");
+  const name = document.createElement("span");
+  name.textContent = node.name;
+  const c = document.createElement("span");
+  c.className = "n";
+  c.textContent = " (" + node.count + ")";
+  li.append(name, c);
+  if (node.children && node.children.length) {
+    const ul = document.createElement("ul");
+    node.children.forEach((ch) => render(ch, ul));
+    li.appendChild(ul);
+  }
+  parent.appendChild(li);
+}
+document.getElementById("go").addEventListener("click", async () => {
+  const out = document.getElementById("out");
+  out.textContent = "Chargement…";
+  const r = await fetch("/tree", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileName: document.getElementById("f").value }) });
+  const d = await r.json();
+  out.textContent = "";
+  if (!r.ok || d.ok !== true) { out.textContent = d.error || "Erreur"; return; }
+  const ul = document.createElement("ul");
+  render(d.root, ul);
+  out.appendChild(ul);
+});
+</script></html>
+'@
+
 $listener = [System.Net.HttpListener]::new()
 $listener.Prefixes.Add($ListenPrefix)
 $listener.Start()
@@ -165,6 +227,14 @@ while ($listener.IsListening) {
   $req = $ctx.Request
   $res = $ctx.Response
   try {
+    if ($req.HttpMethod -eq "GET" -and $req.Url.AbsolutePath -eq "/view") {
+      $bytes = [System.Text.Encoding]::UTF8.GetBytes($viewPage)
+      $res.StatusCode = 200
+      $res.ContentType = "text/html; charset=utf-8"
+      $res.OutputStream.Write($bytes, 0, $bytes.Length)
+      $res.Close()
+      continue
+    }
     if ($req.HttpMethod -eq "OPTIONS") { Add-CorsHeaders $res; $res.StatusCode = 204; $res.Close(); continue }
     if ($req.HttpMethod -ne "POST") { Write-Json $res 405 @{ ok = $false; error = "Method not allowed" }; continue }
 
@@ -190,6 +260,12 @@ while ($listener.IsListening) {
         Write-Json $res 200 (Unmount-Pst $pstPath)
       }
       "/state" { Write-Json $res 200 (Get-PstState ([string]$body.fileName)) }
+      "/tree" {
+        $pstPath = Get-WorkingPstPath ([string]$body.fileName)
+        $tree = Get-PstTree $pstPath
+        if (-not $tree.ok) { Write-Json $res 409 $tree; continue }
+        Write-Json $res 200 $tree
+      }
       "/status" { Write-Json $res 200 @{ ok = $true; running = $true; roots = @(Get-OneDriveRoots) } }
       default { Write-Json $res 404 @{ ok = $false; error = "Route not found" } }
     }
