@@ -85,14 +85,6 @@
       });
     }
 
-    function webUrl(year) {
-      if (!CONFIG.webStatusEndpoint) throw new Error("Point d'accès Power Automate non configuré.");
-      const url = new URL(CONFIG.webStatusEndpoint);
-      if (url.protocol !== "https:") throw new Error("Le point d'accès doit utiliser HTTPS.");
-      if (year) url.searchParams.set("year", year);
-      return url;
-    }
-
     async function agent(route, year) {
       const resp = await fetch(PST_AGENT + route, {
         method: "POST",
@@ -106,14 +98,6 @@
       return data;
     }
 
-    async function webState(year) {
-      const r = await fetch(webUrl(year));
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      const d = await r.json();
-      const exists = d.fileExists === true;
-      return { exists, mounted: exists && d.mounted === true, local: null, cloud: exists, outlookClosed: false, via: "web" };
-    }
-
     async function agentState(year) {
       const d = await agent("/state", year);
       if (typeof d.exists !== "boolean" || typeof d.mounted !== "boolean") {
@@ -124,30 +108,13 @@
         mounted: d.exists === true && d.mounted === true,
         local: typeof d.local === "boolean" ? d.local : d.exists === true,
         cloud: d.cloud === true ? true : null,
-        outlookClosed: d.outlookRunning === false,
-        via: "agent"
+        outlookClosed: d.outlookRunning === false
       };
-      if (CONFIG.webStatusEndpoint) {
-        try {
-          const r = await fetch(webUrl(year));
-          if (r.ok) { const inCloud = (await r.json()).fileExists === true; state.cloud = state.cloud === true ? true : inCloud; }
-        } catch (error) {
-          console.error("Présence cloud " + year + " indisponible.", error);
-        }
-      }
       return state;
     }
 
-    // Même vue Outlook Web et Outlook classique : l'agent local d'abord, le service Web en secours.
-    async function readState(year) {
-      try {
-        return await agentState(year);
-      } catch (error) {
-        if (!CONFIG.webStatusEndpoint) throw error;
-        console.error("Agent PST indisponible, repli sur le service Web.", error);
-        return webState(year);
-      }
-    }
+    // Seul l'agent local est interrogé : aucune donnée ne transite par Azure ni M365.
+    const readState = agentState;
 
     function presenceDetail(state) {
       const text = presenceText(state);
@@ -185,9 +152,7 @@
         }
       }
       msgEl.textContent = failed
-        ? CONFIG.webStatusEndpoint
-          ? "État indisponible : service Web injoignable (" + lastError + "). Cliquez sur Actualiser."
-          : "État indisponible : lancez l'agent PST local puis cliquez sur Actualiser."
+        ? "État indisponible : lancez l'agent PST local puis cliquez sur Actualiser."
         : "";
       refreshing = false;
       render();
@@ -207,19 +172,7 @@
         if (target && !st.exists) throw new Error(st.cloud === true
           ? "PST présent uniquement dans le cloud (" + ARCHIVES[year] + ") : attendez la synchronisation OneDrive locale."
           : "PST introuvable (" + ARCHIVES[year] + ") en local" + (st.cloud === false ? " et dans le cloud" : "") + ", vérifiez OneDrive.");
-        if (st.via === "web" && !isWeb()) throw new Error("Agent PST local injoignable : le montage nécessite l'agent (état affiché via le service Web).");
-        if (st.via === "web") {
-          const url = webUrl();
-          const r = await fetch(url, {
-            method: "POST",
-            // text/plain évite le preflight CORS, que le déclencheur HTTP Power Automate refuse.
-            headers: { "Content-Type": "text/plain" },
-            body: JSON.stringify({ annee: Number(year), Monte: target, Couleur: target ? "Vert" : "Rouge", sharePointPath: (CONFIG.pstUrls && CONFIG.pstUrls[year]) || "" })
-          });
-          if (!r.ok) throw new Error("HTTP " + r.status);
-        } else {
-          await agent(target ? "/mount-pst" : "/unmount-pst", year);
-        }
+        await agent(target ? "/mount-pst" : "/unmount-pst", year);
         const confirmed = await readState(year);
         if (confirmed.mounted !== target) throw new Error("L'état dans Outlook ne confirme pas l'opération.");
         states[year] = confirmed.mounted;
