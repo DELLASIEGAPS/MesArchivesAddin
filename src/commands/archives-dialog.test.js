@@ -9,10 +9,14 @@ function createDialog(fetch) {
   function element() {
     return {
       children: [],
+      listeners: {},
       textContent: "",
       append(...children) { this.children.push(...children); },
       appendChild(child) { this.children.push(child); },
-      addEventListener() {},
+      addEventListener(name, callback) { this.listeners[name] = callback; },
+      click() { if (this.listeners.click) this.listeners.click(); },
+      getAttribute(name) { return this[name]; },
+      setAttribute(name, value) { this[name] = value; },
     };
   }
   const document = {
@@ -44,9 +48,27 @@ function createDialog(fetch) {
     toggle: (year) => vm.runInContext(`toggle("${year}")`, context),
     state: (year) => vm.runInContext(`states["${year}"]`, context),
     message: () => elements.get("msg").textContent,
+    viewer: () => elements.get("agent-view"),
+    viewerPanel: () => elements.get("viewer-panel"),
+    viewerFrame: () => elements.get("viewer-frame"),
+    viewerToggle: () => elements.get("viewer-toggle"),
     messages,
   };
 }
+
+test("propose le visualiseur intégré et un onglet séparé", () => {
+  const dialog = createDialog(async () => {});
+  assert.equal(dialog.viewer().href, "http://127.0.0.1:45731/view");
+  assert.equal(dialog.viewerPanel().hidden, true);
+  dialog.viewerToggle().click();
+  assert.equal(dialog.viewerPanel().hidden, false);
+  assert.equal(dialog.viewerToggle().getAttribute("aria-expanded"), "true");
+  assert.equal(dialog.viewerFrame().src, "http://127.0.0.1:45731/view");
+  dialog.viewerToggle().click();
+  assert.equal(dialog.viewerPanel().hidden, true);
+  const html = fs.readFileSync(path.join(__dirname, "archives-dialog.html"), "utf8");
+  assert.match(html, /id="agent-view"[^>]*target="_blank"/);
+});
 
 function response(data, status = 200) {
   return { ok: status < 400, status, json: async () => data };

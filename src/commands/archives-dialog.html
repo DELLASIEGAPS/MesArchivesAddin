@@ -33,13 +33,7 @@
     .viewer-options button { width: auto; padding: 7px 12px; background: #555; }
     .viewer-link { font-size: 13px; }
     #viewer-panel { margin-top: 10px; }
-    #viewer-panel label { font-size: 12px; }
-    #viewer-file { margin-left: 6px; padding: 4px; }
-    #viewer-status { min-height: 18px; margin-top: 8px; font-size: 12px; color: #b26a00; }
-    #viewer-tree { max-height: 340px; margin-top: 8px; overflow: auto; border: 1px solid #ccc; background: #fff; }
-    #viewer-tree ul { list-style: none; padding-left: 18px; }
-    #viewer-tree li { margin: 2px 0; }
-    #viewer-tree .count { color: #555; }
+    #viewer-frame { display: block; width: 100%; height: 560px; border: 1px solid #ccc; background: #fff; }
   </style>
 </head>
 <body>
@@ -48,20 +42,12 @@
   <div id="list"></div>
   <div id="msg"></div>
   <div class="viewer-options">
-    <button id="viewer-toggle" type="button" aria-expanded="false">Afficher l’arborescence ici</button>
+    <button id="viewer-toggle" type="button" aria-expanded="false">Afficher le visualiseur ici</button>
     <a id="agent-view" class="viewer-link" target="_blank" rel="noopener noreferrer">Ouvrir dans un onglet séparé</a>
   </div>
   <section id="viewer-panel" hidden>
-    <label for="viewer-file">Archive à afficher :
-      <select id="viewer-file">
-        <option value="ADR_2021.pst">2021</option>
-        <option value="ADR_2022.pst">2022</option>
-        <option value="ADR_2023.pst">2023</option>
-        <option value="ADR.pst">2024</option>
-      </select>
-    </label>
-    <div id="viewer-status" role="status"></div>
-    <div id="viewer-tree"></div>
+    <p>Si le visualiseur ne s'affiche pas, vérifiez l'agent local ou utilisez l'onglet séparé.</p>
+    <iframe id="viewer-frame" title="Visualiseur des archives locales" sandbox="allow-scripts allow-same-origin allow-downloads"></iframe>
   </section>
   <div class="footer">
     <button id="modop" type="button">Modop</button>
@@ -83,56 +69,17 @@
     const viewerLink = document.getElementById("agent-view");
     const viewerToggle = document.getElementById("viewer-toggle");
     const viewerPanel = document.getElementById("viewer-panel");
-    const viewerFile = document.getElementById("viewer-file");
-    const viewerStatus = document.getElementById("viewer-status");
-    const viewerTree = document.getElementById("viewer-tree");
-    let viewerLoadId = 0;
+    const viewerFrame = document.getElementById("viewer-frame");
     viewerLink.href = CONFIG.agentViewUrl || PST_AGENT + "/view";
     viewerPanel.hidden = true;
-    viewerFile.value = viewerFile.value || "ADR_2021.pst";
 
     viewerToggle.addEventListener("click", () => {
       viewerPanel.hidden = !viewerPanel.hidden;
       const expanded = !viewerPanel.hidden;
       viewerToggle.setAttribute("aria-expanded", String(expanded));
-      viewerToggle.textContent = expanded ? "Masquer l’arborescence" : "Afficher l’arborescence ici";
-      if (expanded) loadInlineViewer();
+      viewerToggle.textContent = expanded ? "Masquer le visualiseur" : "Afficher le visualiseur ici";
+      if (expanded && !viewerFrame.getAttribute("src")) viewerFrame.src = viewerLink.href;
     });
-    viewerFile.addEventListener("change", loadInlineViewer);
-
-    function renderViewerNode(node, parent) {
-      const item = document.createElement("li");
-      const name = document.createElement("span");
-      name.textContent = node.name;
-      const count = document.createElement("span");
-      count.className = "count";
-      count.textContent = " (" + node.count + ")";
-      item.append(name, count);
-      if (node.children && node.children.length) {
-        const children = document.createElement("ul");
-        node.children.forEach((child) => renderViewerNode(child, children));
-        item.appendChild(children);
-      }
-      parent.appendChild(item);
-    }
-
-    async function loadInlineViewer() {
-      const year = Object.keys(ARCHIVES).find((key) => ARCHIVES[key] === viewerFile.value);
-      const loadId = ++viewerLoadId;
-      viewerStatus.textContent = "Chargement de l’arborescence…";
-      viewerTree.textContent = "";
-      try {
-        const tree = await agent("/tree", year);
-        if (loadId !== viewerLoadId) return;
-        const list = document.createElement("ul");
-        renderViewerNode(tree.root, list);
-        viewerTree.appendChild(list);
-        viewerStatus.textContent = "";
-      } catch (error) {
-        if (loadId !== viewerLoadId) return;
-        viewerStatus.textContent = error && error.message ? error.message : String(error);
-      }
-    }
 
     const isWeb = () => Office.context.platform === Office.PlatformType.OfficeOnline;
 

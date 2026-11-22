@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MesArchives - visualiseur local</title>
+  <style>
+    body { margin: 16px; font: 14px "Segoe UI", sans-serif; color: #222; }
+    h2 { margin: 0 0 8px; }
+    p { margin: 8px 0; }
+    button, select { font: inherit; padding: 5px 8px; }
+    button { cursor: pointer; }
+    button:disabled { cursor: default; }
+    #status { min-height: 20px; color: #9a4f00; margin: 10px 0; }
+    .toolbar, .pagination { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .columns { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(250px, 2fr); gap: 16px; }
+    .panel { min-width: 0; border: 1px solid #ccc; padding: 10px; }
+    .panel h3 { margin: 0 0 8px; }
+    ul { list-style: none; padding: 0; margin: 0; }
+    li { margin: 4px 0; overflow-wrap: anywhere; }
+    .link { border: 0; padding: 2px; background: none; color: #07599a; text-align: left; text-decoration: underline; }
+    .meta { color: #555; font-size: 12px; }
+    #body { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
+    #attachments { margin-top: 16px; }
+    @media (max-width: 650px) { .columns { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <h2>Archives montées (local)</h2>
+  <p>Outlook classique doit être ouvert et le PST chargé. Lecture seule : les messages sont affichés en texte brut, les pièces jointes sont téléchargées à votre demande.</p>
+  <div class="toolbar">
+    <label for="archive">Archive :</label>
+    <select id="archive">
+      <option value="ADR_2021.pst">2021</option>
+      <option value="ADR_2022.pst">2022</option>
+      <option value="ADR_2023.pst">2023</option>
+      <option value="ADR.pst">2024</option>
+    </select>
+    <button id="open" type="button">Afficher</button>
+    <button id="back" type="button" disabled>Dossier parent</button>
+  </div>
+  <div id="status" role="status"></div>
+  <div class="columns">
+    <section class="panel">
+      <h3 id="folder-name">Dossiers</h3>
+      <ul id="folders"></ul>
+    </section>
+    <section class="panel">
+      <div id="message-list">
+        <h3>Messages</h3>
+        <p class="meta">Les pages contiennent jusqu’à 50 éléments du dossier ; seuls les messages sont affichés.</p>
+        <ul id="messages"></ul>
+        <div class="pagination">
+          <button id="previous" type="button" disabled>Page précédente</button>
+          <button id="next" type="button" disabled>Page suivante</button>
+          <span id="page-info" class="meta"></span>
+        </div>
+      </div>
+      <article id="message-detail" hidden>
+        <button id="close-message" type="button">Retour aux messages</button>
+        <h3 id="subject"></h3>
+        <p id="from"></p>
+        <p id="to"></p>
+        <p id="cc"></p>
+        <p id="date"></p>
+        <pre id="body"></pre>
+        <section id="attachments"><h3>Pièces jointes</h3><ul id="attachment-list"></ul></section>
+      </article>
+    </section>
+  </div>
+  <script>
+    const archive = document.getElementById("archive");
+    const status = document.getElementById("status");
+    const folders = document.getElementById("folders");
+    const messages = document.getElementById("messages");
+    const previous = document.getElementById("previous");
+    const next = document.getElementById("next");
+    const back = document.getElementById("back");
+    const list = document.getElementById("message-list");
+    const detail = document.getElementById("message-detail");
+    let path = [];
+    let offset = 0;
+    let nextOffset = null;
+    let requestId = 0;
+
+    async function request(route, data, binary = false) {
+      const response = await fetch(route, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileName: archive.value, ...data })
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Erreur de l'agent : HTTP " + response.status);
+      }
+      if (binary) return response.blob();
+      const result = await response.json();
+      if (result.ok !== true) throw new Error(result.error || "Réponse inattendue de l'agent.");
+      return result;
+    }
+
+    function link(text, action) {
+      const item = document.createElement("li");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "link";
+      button.textContent = text;
+      button.addEventListener("click", action);
+      item.appendChild(button);
+      return item;
+    }
+
+    function showList() {
+      detail.hidden = true;
+      list.hidden = false;
+    }
+
+    async function showFolder(folderId, pageOffset, targetPath = path) {
+      const current = ++requestId;
+      status.textContent = "Chargement du dossier…";
+      folders.textContent = "";
+      messages.textContent = "";
+      showList();
+      back.disabled = true;
+      previous.disabled = true;
+      next.disabled = true;
+      document.getElementById("page-info").textContent = "";
+      try {
+        const data = await request("/folder", { folderId, offset: pageOffset });
+        if (current !== requestId) return;
+        offset = data.offset;
+        nextOffset = data.nextOffset;
+        path = targetPath.length ? targetPath : [{ id: data.folder.id, name: data.folder.name }];
+        document.getElementById("folder-name").textContent = "Dossiers — " + data.folder.name;
+        back.disabled = path.length <= 1;
+        data.folders.forEach((folder) => {
+          folders.appendChild(link(folder.name + " (" + folder.count + ")", () => {
+            showFolder(folder.id, 0, [...path, { id: folder.id, name: folder.name }]);
+          }));
+        });
+        if (!data.folders.length) folders.textContent = "Aucun sous-dossier.";
+        data.messages.forEach((message) => {
+          messages.appendChild(link((message.subject || "(Sans objet)") + " — " + message.sender + " — " + message.date, () => showMessage(message.id)));
+        });
+        if (!data.messages.length) messages.textContent = "Aucun message dans cette page.";
+        previous.disabled = offset === 0;
+        next.disabled = nextOffset === null;
+        document.getElementById("page-info").textContent =
+          data.totalItems ? "Éléments " + (offset + 1) + " à " + Math.min(offset + 50, data.totalItems) + " sur " + data.totalItems : "Dossier vide.";
+        status.textContent = "";
+      } catch (error) {
+        if (current !== requestId) return;
+        status.textContent = "Impossible d'afficher ce dossier : " + error.message;
+      }
+    }
+
+    async function showMessage(itemId) {
+      const current = ++requestId;
+      status.textContent = "Chargement du message…";
+      try {
+        const message = await request("/message", { itemId });
+        if (current !== requestId) return;
+        document.getElementById("subject").textContent = message.subject || "(Sans objet)";
+        document.getElementById("from").textContent = "De : " + message.sender;
+        document.getElementById("to").textContent = "À : " + message.to;
+        document.getElementById("cc").textContent = "Cc : " + message.cc;
+        document.getElementById("date").textContent = "Date : " + message.date;
+        document.getElementById("body").textContent = message.body;
+        const attachmentList = document.getElementById("attachment-list");
+        attachmentList.textContent = "";
+        message.attachments.forEach((attachment) => {
+          attachmentList.appendChild(link(attachment.name + " (" + attachment.size + " octets)", () => downloadAttachment(itemId, attachment)));
+        });
+        if (!message.attachments.length) attachmentList.textContent = "Aucune pièce jointe.";
+        list.hidden = true;
+        detail.hidden = false;
+        status.textContent = "";
+      } catch (error) {
+        if (current !== requestId) return;
+        status.textContent = "Impossible d'afficher ce message : " + error.message;
+      }
+    }
+
+    async function downloadAttachment(itemId, attachment) {
+      status.textContent = "Préparation de la pièce jointe…";
+      try {
+        const blob = await request("/attachment", { itemId, index: attachment.index }, true);
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = attachment.name.replace(/[\\/:*?"<>|\x00-\x1f]/g, "_") || "piece-jointe";
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        status.textContent = "Téléchargement demandé au navigateur.";
+      } catch (error) {
+        status.textContent = "Impossible de télécharger la pièce jointe : " + error.message;
+      }
+    }
+
+    function openArchive() {
+      showFolder("", 0, []);
+    }
+    document.getElementById("open").addEventListener("click", openArchive);
+    archive.addEventListener("change", openArchive);
+    back.addEventListener("click", () => {
+      if (path.length > 1) {
+        const parentPath = path.slice(0, -1);
+        showFolder(parentPath[parentPath.length - 1].id, 0, parentPath);
+      }
+    });
+    previous.addEventListener("click", () => showFolder(path[path.length - 1].id, Math.max(0, offset - 50)));
+    next.addEventListener("click", () => { if (nextOffset !== null) showFolder(path[path.length - 1].id, nextOffset); });
+    document.getElementById("close-message").addEventListener("click", () => {
+      requestId++;
+      status.textContent = "";
+      showList();
+    });
+
+    const requestedFile = new URLSearchParams(location.search).get("fileName");
+    if ([...archive.options].some((option) => option.value === requestedFile)) {
+      archive.value = requestedFile;
+      openArchive();
+    }
+  </script>
+</body>
+</html>
