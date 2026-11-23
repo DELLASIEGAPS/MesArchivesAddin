@@ -61,7 +61,7 @@ flowchart LR
     V -->|Pièce jointe demandée| D
 ```
 
-Le site HTTPS et le navigateur accèdent à l'agent sur le même poste via la boucle locale. Le schéma représente les dépendances, pas une publication de messages vers le site. Une source OneDrive doit être synchronisée et disponible localement ; la copie de travail existante n'est pas actualisée automatiquement.
+Le code du dialogue téléchargé depuis le site HTTPS s'exécute dans le navigateur et appelle l'agent sur le même poste via la boucle locale. Le schéma représente les dépendances, pas une publication de messages vers le site. Une source OneDrive doit être synchronisée et disponible localement ; la copie de travail existante n'est pas actualisée automatiquement.
 
 ### Parcours de chargement et de consultation
 
@@ -110,7 +110,66 @@ sequenceDiagram
 
 Le manifeste identifie le complément et les URL HTTPS ; le code du dialogue et des commandes est hébergé sur GitHub Pages. L'agent écoute par défaut sur `127.0.0.1:45731` ; cette adresse concerne le poste où le navigateur s'exécute. Le dialogue appelle l'agent pour l'état et le montage ; le visualiseur, servi par l'agent, utilise les routes `/folder`, `/message` et `/attachment`.
 
-L'agent recherche les noms autorisés par sa configuration et utilise `%LOCALAPPDATA%\MesArchives\PST` pour la copie de travail. Outlook classique doit être déjà ouvert : l'agent s'y attache par COM avec Windows PowerShell 5.1. Une pièce jointe passe temporairement par un fichier local avant transmission puis suppression ; le navigateur choisit ensuite son dossier de téléchargement. Aucun flux d'import Exchange/Graph n'est déclenché par le visualiseur. Le PST source, le code du site, le navigateur, les journaux et les téléchargements peuvent néanmoins relever de politiques de synchronisation ou de conservation distinctes.
+Le dialogue propose quatre noms de PST configurés ; l'agent vérifie le format du nom reçu, sans limiter les requêtes à ces quatre noms. Il utilise `%LOCALAPPDATA%\MesArchives\PST` pour la copie de travail. Outlook classique doit être déjà ouvert : l'agent s'y attache par COM avec Windows PowerShell 5.1. Une pièce jointe passe temporairement par un fichier local avant transmission puis suppression ; le navigateur choisit ensuite son dossier de téléchargement. Aucun flux d'import Exchange/Graph n'est déclenché par le visualiseur. Le PST source, le code du site, le navigateur, les journaux et les téléchargements peuvent néanmoins relever de politiques de synchronisation ou de conservation distinctes.
+
+### Zoom sur le grand encadré : flux locaux et enjeux ARCOS
+
+Le grand encadré comprend les échanges entre l'**agent local**, le **visualiseur**, **Outlook classique** et la **copie PST**, ainsi que la création initiale de cette copie. L'agent et les fichiers PST sont dessinés aux limites de l'encadré sur la capture, mais sont indispensables à l'explication des flux. Le visualiseur appelle l'agent HTTP local ; l'agent interroge Outlook classique par COM ; Outlook accède à la copie PST montée. Cette architecture ne permet pas de se passer d'Outlook classique.
+
+```mermaid
+flowchart TB
+    S[(PST source disponible localement)]
+    subgraph PC["Poste Windows : zoom sur les flux du grand encadré"]
+        C[Dialogue Mes Archives]
+        V[Visualiseur dans le navigateur<br/>intégré ou onglet séparé]
+        A[Agent local PowerShell 5.1<br/>127.0.0.1:45731]
+        O[Outlook classique ouvert<br/>Object Model COM]
+        W[(Copie PST de travail<br/>LOCALAPPDATA)]
+        T[Fichier temporaire<br/>pièce jointe]
+        D[Téléchargement navigateur]
+        C -->|HTTP local : état, montage, démontage| A
+        A -->|HTTP local : page /view| V
+        V -->|HTTP local : /folder, /message, /attachment| A
+        A -->|HTTP local : listes, texte, pièce jointe| V
+        A -->|COM : monter, démonter, lire| O
+        O <-->|Accès au PST monté| W
+        A -->|Crée la copie si absente| W
+        O -->|Écrit à la demande| T
+        T -->|Transmis puis suppression tentée| A
+        V -->|Téléchargement sur clic| D
+    end
+    S -->|Lecture pour copie initiale| A
+```
+
+Le PST source est lui aussi local ou synchronisé sur ce poste ; il est représenté hors du cadre du zoom pour distinguer l'origine de la copie de travail. Le parcours des pièces jointes passe par un fichier temporaire avant la réponse de l'agent, puis par le navigateur. Les flèches représentent des échanges logiques observés dans le code, pas une preuve d'homologation ou de fonctionnement sur un poste Banque de France.
+
+**Périmètre ARCOS à confirmer.** Le dépôt mentionne ARCOS et NEXT comme interlocuteurs pour l'acceptation de l'agent et de l'accès local, mais ne décrit ni leur rôle exact ni une interface technique avec ARCOS. Aucun échange de données avec un système ARCOS n'est établi par les éléments disponibles. Les validations ci-dessous sont des propositions à répartir avec les équipes concernées, pas des décisions déjà prises.
+
+#### Flux de données observables dans le prototype
+
+| Étape | Source → destination | Données et traitement | Implications pour la Banque de France |
+|---|---|---|---|
+| Mise à disposition | Site HTTPS → navigateur ; agent local → navigateur | Le navigateur charge le complément depuis GitHub Pages et le visualiseur `/view` depuis `127.0.0.1:45731`. | Valider l'hébergement du code, son intégrité, les versions compatibles, l'autorisation de l'iframe et l'accès du navigateur à la boucle locale. Le site et son code sont dans le périmètre de confiance. |
+| Préparation | PST source local → agent → copie locale | Si la copie n'existe pas, l'agent copie le PST dans `%LOCALAPPDATA%\MesArchives\PST`. Une copie présente est réutilisée sans actualisation ; une source OneDrive doit être disponible sur le poste. | Une seconde copie potentiellement sensible persiste sur le poste, y compris après démontage. Définir classification, droits d'accès, chiffrement, espace disque, durée de conservation, sauvegarde et procédure contrôlée de renouvellement. |
+| Montage | Dialogue → agent → Outlook classique → copie PST | Le dialogue transmet le nom du fichier et le nom d'affichage ; l'agent demande à Outlook, via COM, de monter ou démonter la copie. Il renvoie notamment un état et peut renvoyer le chemin local. | Autoriser et gérer l'agent et Outlook classique sur le même poste ; maîtriser les droits du compte Windows, les versions et les éventuelles alertes de sécurité Outlook. Le démontage ne supprime pas la copie. |
+| Dossiers et liste | Visualiseur → agent → Outlook classique → visualiseur | Les requêtes `/folder` transportent le nom du PST, l'identifiant du dossier et la position de page. La réponse contient notamment noms et identifiants de dossiers, nombres d'éléments, objets, expéditeurs et dates des messages. | Les métadonnées peuvent elles-mêmes être sensibles. Elles traversent HTTP sur la boucle locale et sont affichées dans le navigateur ; évaluer le risque lié aux processus locaux et aux composants du navigateur. |
+| Lecture | Visualiseur → agent → Outlook classique → visualiseur | `/message` utilise l'identifiant du message. La réponse comprend notamment objet, date, expéditeur et destinataires, adresses résolues, corps en texte brut et noms et tailles des pièces jointes. | Le contenu sort du PST vers la mémoire de l'agent et du navigateur. Évaluer confidentialité, exposition locale, captures d'écran, extensions et outils du poste. La résolution d'adresses Exchange peut aussi dépendre de l'annuaire accessible et des politiques Outlook. |
+| Pièce jointe | Outlook classique → fichier temporaire → agent → navigateur | Sur clic, `/attachment` demande un message et un index. Outlook écrit un fichier temporaire ; l'agent le transmet puis tente de le supprimer. Le navigateur reçoit les octets et les enregistre selon ses paramètres. | Vérifier les droits et protections du dossier temporaire, la suppression en cas d'interruption, l'antivirus, les contrôles de téléchargement, la conservation et le risque d'un dossier de téléchargement synchronisé ou partagé. |
+
+Les appels du visualiseur vers l'agent sont en HTTP sur `127.0.0.1` : ils ne constituent pas une liaison réseau vers GitHub Pages. **Cela ne garantit pas que toutes les données restent hors du cloud** : la source ou les téléchargements peuvent être synchronisés, Outlook peut contacter l'annuaire, et d'autres logiciels ou politiques du poste peuvent traiter les données. Le code du prototype ne déclenche pas d'import des messages dans Exchange ou Graph ; ne pas en déduire une garantie sur l'ensemble de l'environnement.
+
+#### Décisions à instruire avec ARCOS et les équipes Banque de France
+
+| Enjeu | Questions et actions proposées avant pilote |
+|---|---|
+| Sécurité des accès | Qui est autorisé à lancer et utiliser l'agent ? Examiner l'absence d'authentification des processus locaux, les routes de montage et de lecture, la portée des contrôles d'origine/CORS et les risques d'accès par d'autres logiciels du poste. Définir les protections complémentaires et les conditions d'homologation. |
+| Poste et navigateur | ARCOS et les équipes poste/navigateur doivent confirmer les politiques applicables à Windows PowerShell 5.1, COM, l'écoute locale HTTP, l'accès réseau local depuis une page HTTPS, l'iframe, les extensions et les téléchargements. Tester la configuration réelle plutôt que présumer son autorisation. |
+| Données et conformité | Identifier le propriétaire des PST, leur classification et leur durée de conservation ; définir les habilitations, le chiffrement, les règles de copie, de sauvegarde, d'effacement et de traitement des pièces jointes avec les équipes sécurité et conformité. |
+| Exploitation et traçabilité | Désigner les responsables de distribution et de mise à jour de l'agent et du site, du support, des incidents et du retour arrière. Définir les événements à tracer et leur conservation sans journaliser inutilement le contenu des messages : le prototype ne fournit pas à lui seul une traçabilité d'audit complète. |
+| Pérennité | Vérifier la disponibilité et le support d'Outlook classique et de Windows PowerShell 5.1 sur les postes cibles. Étudier séparément une solution ne dépendant pas de COM ; le visualiseur actuel ne répond pas à cet objectif. |
+| Recette et arbitrage | Tester avec des données fictives puis autorisées : Outlook fermé, PST absent ou verrouillé, copie ancienne, politique navigateur restrictive, pièces jointes et arrêt brutal. Consigner les résultats et obtenir les accords requis avant toute généralisation. |
+
+**Livrable attendu de la concertation :** un schéma de flux validé sur le poste cible, une matrice des responsabilités et des autorisations, les mesures de sécurité retenues et une décision explicite sur un pilote. Les propriétaires, destinations de synchronisation et règles effectivement appliquées restent à confirmer par la Banque de France.
 
 ### Frontières et sécurité
 
