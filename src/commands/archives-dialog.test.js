@@ -4,15 +4,20 @@ const path = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
 
-function createDialog(fetch) {
+function createDialog(fetch, config = {}) {
   const elements = new Map();
   function element() {
     return {
       children: [],
+      listeners: {},
       textContent: "",
       append(...children) { this.children.push(...children); },
       appendChild(child) { this.children.push(child); },
-      addEventListener() {},
+      addEventListener(name, callback) { this.listeners[name] = callback; },
+      click() { if (this.listeners.click) this.listeners.click(); },
+      getAttribute(name) { return this[name]; },
+      removeAttribute(name) { delete this[name]; },
+      setAttribute(name, value) { this[name] = value; },
     };
   }
   const document = {
@@ -35,8 +40,8 @@ function createDialog(fetch) {
   const html = fs.readFileSync(path.join(__dirname, "archives-dialog.html"), "utf8");
   const script = html.match(/<script>\s*([\s\S]*?)<\/script>/)[1];
   const context = vm.createContext({
-    document, Office, fetch, AbortSignal, URL, console,
-    window: { MES_ARCHIVES_CONFIG: {}, open() {} },
+    document, Office, fetch, AbortSignal, URL, console, setTimeout, clearTimeout,
+    window: { MES_ARCHIVES_CONFIG: config, open() {} },
   });
   vm.runInContext(script, context);
   return {
@@ -44,9 +49,61 @@ function createDialog(fetch) {
     toggle: (year) => vm.runInContext(`toggle("${year}")`, context),
     state: (year) => vm.runInContext(`states["${year}"]`, context),
     message: () => elements.get("msg").textContent,
+    viewer: () => elements.get("agent-view"),
+    viewerPanel: () => elements.get("viewer-panel"),
+    viewerToggle: () => elements.get("viewer-toggle"),
+    viewerFrame: () => elements.get("viewer-frame"),
+    progressLabel: () => elements.get("progress-label").textContent,
+    progressBar: () => elements.get("progress-bar"),
+    close: () => elements.get("close").click(),
     messages,
   };
 }
+
+test("propose le visualiseur intégré et un onglet séparé", () => {
+  const rendered = createDialog(async () => {}, { agentViewUrl: "http://127.0.0.1:45731/view" });
+  assert.equal(rendered.viewer().href, "http://127.0.0.1:45731/view");
+  const html = fs.readFileSync(path.join(__dirname, "archives-dialog.html"), "utf8");
+  assert.match(html, /id="agent-view"[^>]*target="_blank"/);
+  assert.equal(rendered.viewerPanel().hidden, true);
+  rendered.viewerToggle().click();
+  assert.equal(rendered.viewerPanel().hidden, false);
+  assert.equal(rendered.viewerToggle().getAttribute("aria-expanded"), "true");
+  assert.equal(rendered.viewerFrame().src, "http://127.0.0.1:45731/view");
+  rendered.viewerToggle().click();
+  assert.equal(rendered.viewerPanel().hidden, true);
+});
+
+test("ferme la boîte de dialogue même lorsque le visualiseur est ouvert", () => {
+  const dialog = createDialog(async () => {});
+  dialog.viewerToggle().click();
+  dialog.close();
+  assert.equal(dialog.messages[0].type, "close");
+});
+
+test("affiche patienter après une seconde et termine la progression par étapes", async () => {
+  let release;
+  const pending = new Promise((resolve) => { release = resolve; });
+  let count = 0;
+  const dialog = createDialog(async () => {
+    if (++count === 1) await pending;
+    return response({ ok: true, exists: true, mounted: false });
+  });
+  const refresh = dialog.start();
+  await new Promise((resolve) => setTimeout(resolve, 1100));
+  assert.match(dialog.progressLabel(), /Veuillez patienter/);
+  assert.equal(dialog.progressBar().value, 0);
+  release();
+  await refresh;
+  assert.equal(dialog.progressLabel(), "Opération terminée.");
+  assert.equal(dialog.progressBar().value, 4);
+});
+
+test("utilise l’agent local par défaut pour les deux modes d’affichage", () => {
+  const dialog = createDialog(async () => {});
+  assert.equal(dialog.viewer().href, "http://127.0.0.1:45731/view");
+  assert.equal(dialog.viewerToggle().disabled, undefined);
+});
 
 function response(data, status = 200) {
   return { ok: status < 400, status, json: async () => data };

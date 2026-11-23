@@ -7,7 +7,10 @@
   <script src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
   <script src="../archives-config.js"></script>
   <style>
-    body { font-family: "Segoe UI", sans-serif; margin: 0; padding: 16px; background: #fafafa; }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body { font-family: "Segoe UI", sans-serif; margin: 0; padding: 12px 16px; background: #fafafa; display: flex; flex-direction: column; overflow: hidden; }
+    header, .viewer-options, .footer { flex: 0 0 auto; }
     h2 { margin: 0 0 4px; font-size: 18px; }
     .sub { font-size: 12px; color: #666; margin-bottom: 14px; }
     #list { display: flex; gap: 10px; }
@@ -21,21 +24,47 @@
     .state { font-size: 12px; font-weight: 600; color: #c62828; }
     .tile.on .state { color: #2e7d32; }
     .tile.unknown .state { color: #777; }
-    .detail { font-size: 11px; color: #888; min-height: 28px; }
+    .detail { font-size: 11px; color: #888; height: 42px; overflow: hidden; }
     button { width: 100%; padding: 7px 4px; border: 0; border-radius: 4px; color: #fff; cursor: pointer;
              font-size: 12px; font-weight: 600; background: #c62828; }
     .tile.on button { background: #2e7d32; }
     button:disabled { opacity: .5; cursor: not-allowed; }
-    #msg { min-height: 18px; margin-top: 10px; font-size: 12px; color: #b26a00; }
+    #msg { min-height: 18px; margin-top: 4px; font-size: 12px; color: #b26a00; }
     .footer { margin-top: 12px; display: flex; justify-content: space-between; }
     .footer button { width: auto; min-width: 80px; padding: 7px 12px; background: #555; }
+    .viewer-options { display: flex; align-items: center; gap: 16px; margin-top: 10px; }
+    .viewer-options button { width: auto; padding: 7px 12px; background: #555; }
+    .viewer-link { font-size: 13px; }
+    #viewer-panel { margin-top: 8px; flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+    #viewer-panel p { margin: 0 0 6px; font-size: 12px; }
+    #viewer-frame { display: block; width: 100%; flex: 1 1 0; min-height: 0; border: 1px solid #ccc; background: #fff; }
+    #progress { flex: 0 0 auto; font-size: 12px; }
+    #progress progress { width: 100%; height: 8px; }
+    #progress-steps { margin: 2px 0; padding-left: 20px; display: flex; flex-wrap: wrap; gap: 4px 20px; }
+    [hidden] { display: none !important; }
+    @media (max-height: 500px) { .tile img { width: 24px; height: 24px; } .tile { padding: 4px; gap: 2px; } .detail { height: 28px; } }
   </style>
 </head>
 <body>
+  <header>
   <h2>Mes Archives</h2>
   <div class="sub">Rouge = indisponible (PST non monté) · Vert = disponible (PST monté dans Outlook)</div>
   <div id="list"></div>
+  </header>
   <div id="msg"></div>
+  <section id="progress" aria-label="Progression de l'opération" aria-live="polite" hidden>
+    <div id="progress-label"></div>
+    <progress id="progress-bar" value="0" max="1"></progress>
+    <ol id="progress-steps"></ol>
+  </section>
+  <div class="viewer-options">
+    <button id="viewer-toggle" type="button" aria-expanded="false">Afficher le visualiseur ici</button>
+    <a id="agent-view" class="viewer-link" target="_blank" rel="noopener noreferrer">Ouvrir dans un onglet séparé</a>
+  </div>
+  <section id="viewer-panel" hidden>
+    <p>Si le visualiseur ne s'affiche pas, vérifiez l'agent local ou utilisez l'onglet séparé.</p>
+    <iframe id="viewer-frame" title="Visualiseur des archives locales" sandbox="allow-scripts allow-same-origin allow-downloads allow-top-navigation-by-user-activation"></iframe>
+  </section>
   <div class="footer">
     <button id="modop" type="button">Modop</button>
     <button id="refresh" type="button">Actualiser</button>
@@ -53,6 +82,52 @@
     let refreshing = false;
     const listEl = document.getElementById("list");
     const msgEl = document.getElementById("msg");
+    const viewerLink = document.getElementById("agent-view");
+    const viewerToggle = document.getElementById("viewer-toggle");
+    const viewerPanel = document.getElementById("viewer-panel");
+    const viewerFrame = document.getElementById("viewer-frame");
+    const progressEl = document.getElementById("progress");
+    const progressLabel = document.getElementById("progress-label");
+    const progressBar = document.getElementById("progress-bar");
+    const progressSteps = document.getElementById("progress-steps");
+    let progressTimer;
+    let operationSteps = [];
+    let completedSteps = 0;
+    function beginProgress(steps) {
+      clearTimeout(progressTimer);
+      operationSteps = steps;
+      completedSteps = 0;
+      progressEl.hidden = false;
+      progressLabel.textContent = "Opération en cours…";
+      progressBar.max = steps.length;
+      updateProgress(0);
+      progressTimer = setTimeout(() => { progressLabel.textContent = "Veuillez patienter, opération en cours…"; }, 1000);
+    }
+    function updateProgress(completed) {
+      completedSteps = completed;
+      progressBar.value = completed;
+      progressSteps.textContent = "";
+      operationSteps.forEach((step, index) => {
+        const item = document.createElement("li");
+        item.textContent = (index < completed ? "✓ " : index === completed ? "En cours : " : "À venir : ") + step;
+        progressSteps.appendChild(item);
+      });
+    }
+    function endProgress(success) {
+      clearTimeout(progressTimer);
+      if (success) updateProgress(operationSteps.length);
+      progressLabel.textContent = success ? "Opération terminée." : "Opération interrompue ; consultez le message ci-dessous.";
+    }
+    viewerPanel.hidden = true;
+    viewerLink.href = CONFIG.agentViewUrl || PST_AGENT + "/view";
+
+    viewerToggle.addEventListener("click", () => {
+      viewerPanel.hidden = !viewerPanel.hidden;
+      const expanded = !viewerPanel.hidden;
+      viewerToggle.setAttribute("aria-expanded", String(expanded));
+      viewerToggle.textContent = expanded ? "Masquer le visualiseur" : "Afficher le visualiseur ici";
+      if (expanded && !viewerFrame.getAttribute("src")) viewerFrame.src = viewerLink.href;
+    });
 
     const isWeb = () => Office.context.platform === Office.PlatformType.OfficeOnline;
 
@@ -134,6 +209,7 @@
     async function refreshStates() {
       if (refreshing || Object.values(busy).some(Boolean)) return;
       refreshing = true;
+      beginProgress(Object.keys(ARCHIVES).map((year) => "Vérifier l'archive " + year));
       msgEl.textContent = "Vérification des archives…";
       render();
       let failed = false;
@@ -150,11 +226,13 @@
           lastError = error && error.message ? error.message : String(error);
           console.error("État de l'archive " + year + " indisponible.", error);
         }
+        updateProgress(completedSteps + 1);
       }
       msgEl.textContent = failed
         ? "État indisponible : lancez l'agent PST local puis cliquez sur Actualiser."
         : "";
       refreshing = false;
+      endProgress(!failed);
       render();
     }
 
@@ -163,6 +241,7 @@
       const previous = states[year];
       const target = !(states[year] === true);
       busy[year] = true;
+      beginProgress(["Vérifier l'état dans Outlook", target ? "Charger l'archive" : "Décharger l'archive", "Confirmer l'état dans Outlook"]);
       msgEl.textContent = "";
       details[year] = target ? "Chargement en cours…" : "Déchargement en cours…";
       render();
@@ -172,13 +251,17 @@
         if (target && !st.exists) throw new Error(st.cloud === true
           ? "PST présent uniquement dans le cloud (" + ARCHIVES[year] + ") : attendez la synchronisation OneDrive locale."
           : "PST introuvable (" + ARCHIVES[year] + ") en local" + (st.cloud === false ? " et dans le cloud" : "") + ", vérifiez OneDrive.");
+        updateProgress(1);
         await agent(target ? "/mount-pst" : "/unmount-pst", year);
+        updateProgress(2);
         const confirmed = await readState(year);
         if (confirmed.mounted !== target) throw new Error("L'état dans Outlook ne confirme pas l'opération.");
         states[year] = confirmed.mounted;
         details[year] = isWeb() ? (target ? "Disponible (Outlook Web)" : "Indisponible") : (target ? "Monté dans Outlook" : "Démonté");
         Office.context.ui.messageParent(JSON.stringify({ type: "states", states }));
+        endProgress(true);
       } catch (e) {
+        endProgress(false);
         delete states[year];
         details[year] = "État à vérifier";
         const reason = e.name === "TypeError"
@@ -192,7 +275,14 @@
 
     document.getElementById("modop").addEventListener("click", () => window.open("https://dellasiegaps.github.io/MesArchivesAddin/docs/Fiche%20pratique%20-%20Exchange%20Online.pdf", "_blank", "noopener"));
     document.getElementById("refresh").addEventListener("click", refreshStates);
-    document.getElementById("close").addEventListener("click", () => Office.context.ui.messageParent(JSON.stringify({ type: "close" })));
+    document.getElementById("close").addEventListener("click", () => {
+      try {
+        Office.context.ui.messageParent(JSON.stringify({ type: "close" }));
+      } catch (error) {
+        console.error("Fermeture de la fenêtre impossible.", error);
+        msgEl.textContent = "Impossible de fermer cette fenêtre automatiquement. Utilisez la croix en haut à droite.";
+      }
+    });
     render();
     Office.onReady(refreshStates);
   </script>
