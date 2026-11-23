@@ -33,19 +33,79 @@ Le parcours détaillé et les commandes de démarrage figurent dans [VISUALISEUR
 
 ## 3. Architecture technique
 
-```text
-Outlook classique (complément web et boîte de dialogue HTTPS)
-    |  Office.js : commande, messages dialogue/parent
-    |  HTTPS GitHub Pages : code du complément
-    v
-Dialogue Mes Archives  -- HTTP loopback --> Agent PowerShell 5.1
-    |                                         |
-    | iframe /view ou onglet séparé            | Outlook Object Model / COM
-    v                                         v
-Visualiseur local  -- HTTP loopback --> Outlook classique --> copie de travail PST
-                                               ^
-                                               |
-                                     source PST locale / OneDrive synchronisé
+### Vue des composants et des flux
+
+```mermaid
+flowchart LR
+    U[Utilisateur]
+    GH[GitHub Pages<br/>Manifeste et code du complément]
+    subgraph PC["Poste Windows de l'utilisateur"]
+        OWA[Outlook Web ou classique<br/>Complément et dialogue]
+        V[Visualiseur local<br/>Intégré ou onglet séparé]
+        A[Agent local<br/>Windows PowerShell 5.1]
+        OL[Outlook classique ouvert<br/>Object Model COM]
+        S[(PST source local<br/>ou OneDrive synchronisé)]
+        W[(Copie de travail PST<br/>LOCALAPPDATA / MesArchives / PST)]
+        D[Téléchargements<br/>du navigateur]
+    end
+    U --> OWA
+    GH -->|HTTPS : chargement du complément| OWA
+    OWA -->|HTTP local : état, charger, décharger| A
+    OWA -->|Affiche /view ou ouvre un onglet| V
+    A -->|HTTP local : fournit /view| V
+    V -->|HTTP local : dossiers, messages, pièces jointes| A
+    A -->|Copie initiale si absente| W
+    S -->|Lecture de la source| A
+    A -->|COM : montage, démontage, lecture| OL
+    OL <-->|Accès au PST monté| W
+    V -->|Pièce jointe demandée| D
+```
+
+Le site HTTPS et le navigateur accèdent à l'agent sur le même poste via la boucle locale. Le schéma représente les dépendances, pas une publication de messages vers le site. Une source OneDrive doit être synchronisée et disponible localement ; la copie de travail existante n'est pas actualisée automatiquement.
+
+### Parcours de chargement et de consultation
+
+```mermaid
+sequenceDiagram
+    actor U as Utilisateur
+    participant C as Dialogue Mes Archives
+    participant A as Agent local
+    participant S as PST source
+    participant W as Copie de travail
+    participant O as Outlook classique
+    participant V as Visualiseur local
+
+    U->>C: Choisit une année et Charger
+    C->>A: État puis demande de montage
+    A->>W: Recherche la copie existante
+    alt Copie absente
+        A->>S: Recherche le PST source disponible
+        A->>W: Crée la copie locale
+    else Copie présente
+        Note over A,W: Réutilisation sans actualisation depuis la source
+    end
+    A->>O: Monte la copie via COM
+    C->>A: Vérifie l'état
+    U->>C: Ouvre le visualiseur intégré ou séparé
+    C->>V: Affiche ou ouvre /view
+    U->>V: Sélectionne dossier et message
+    V->>A: Demande dossiers et message
+    A->>O: Lit le PST monté via COM
+    O-->>A: Données du dossier et du message
+    A-->>V: Réponse locale ; corps en texte brut
+    opt Pièce jointe demandée
+        U->>V: Clique sur la pièce jointe
+        V->>A: Demande le téléchargement
+        A->>O: Récupère la pièce jointe
+        A-->>V: Transmet le fichier
+        Note over A,V: Fichier temporaire côté agent, puis téléchargement navigateur
+    end
+    opt Déchargement
+        U->>C: Choisit Décharger
+        C->>A: Demande de démontage
+        A->>O: Démonte la copie via COM
+        Note over W: La copie locale est conservée
+    end
 ```
 
 Le manifeste identifie le complément et les URL HTTPS ; le code du dialogue et des commandes est hébergé sur GitHub Pages. L'agent écoute par défaut sur `127.0.0.1:45731` ; cette adresse concerne le poste où le navigateur s'exécute. Le dialogue appelle l'agent pour l'état et le montage ; le visualiseur, servi par l'agent, utilise les routes `/folder`, `/message` et `/attachment`.
