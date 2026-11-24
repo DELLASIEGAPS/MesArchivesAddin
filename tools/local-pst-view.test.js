@@ -35,7 +35,7 @@ function createViewer(fetch) {
   document.getElementById("archive").options = [];
   const html = fs.readFileSync(path.join(__dirname, "local-pst-view.html"), "utf8");
   const script = html.match(/<script>\s*([\s\S]*?)<\/script>/)[1];
-  const context = vm.createContext({ document, fetch, URLSearchParams, location: { search: "" }, setTimeout, clearTimeout, URL });
+  const context = vm.createContext({ document, fetch, URLSearchParams, location: { search: "" }, setTimeout, clearTimeout, URL, window: { confirm: () => true } });
   vm.runInContext(script, context);
   return { elements, run: (code) => vm.runInContext(code, context) };
 }
@@ -101,4 +101,108 @@ test("ne transforme pas une adresse non valide en lien", () => {
   viewer.run(`renderContacts("from", "De", [{ name: "Inconnu", address: "bad@example.test?subject=inject" }], "")`);
   assert.match(viewer.elements.get("from").children[0].textContent, /adresse indisponible/);
   assert.equal(viewer.elements.get("from").children[0].href, undefined);
+});
+
+test("recherche le corps et les métadonnées dans toutes les archives montées et leurs sous-dossiers", async () => {
+  const calls = [];
+  const viewer = createViewer(async (route, options) => {
+    const body = JSON.parse(options.body);
+    calls.push({ route, ...body });
+    if (route === "/state") return jsonResponse({ ok: true, mounted: body.fileName !== "third.pst", outlookRunning: true });
+    if (route === "/message") return jsonResponse({ ok: true, body: "Contenu RECHERCHÉ" });
+    const child = body.folderId === "child";
+    return jsonResponse({
+      ok: true, folder: { id: child ? "child" : "root", name: child ? "Enfant" : "Racine" },
+      folders: !child && body.fileName === "first.pst" ? [{ id: "child", name: "Enfant", count: 1 }] : [],
+      messages: child ? [{ id: "mail", subject: "Sans rapport", sender: "Alice", date: "" }]
+        : body.fileName === "second.pst" ? [{ id: "mail2", subject: "Recherché", sender: "Bob", date: "" }] : [],
+      offset: 0, nextOffset: null, totalItems: 1,
+    });
+  });
+  viewer.elements.get("archive").options = [
+    { value: "first.pst", textContent: "2021" },
+    { value: "second.pst", textContent: "2022" },
+    { value: "third.pst", textContent: "2023" },
+  ];
+  await viewer.run('searchArchives("recherché")');
+  assert.equal(viewer.elements.get("messages").children.length, 2);
+  assert.match(viewer.elements.get("status").textContent, /2 résultat\(s\) dans 2 archive/);
+  assert.equal(calls.some((call) => call.route === "/message" && call.fileName === "first.pst"), true);
+  assert.equal(calls.some((call) => call.route === "/folder" && call.fileName === "third.pst"), false);
+});
+
+test("signale une recherche incomplète lorsque l'agent échoue", async () => {
+  const viewer = createViewer(async () => jsonResponse({ error: "Agent indisponible" }, 500));
+  viewer.elements.get("archive").options = [{ value: "first.pst", textContent: "2021" }];
+  await viewer.run('searchArchives("test")');
+  assert.match(viewer.elements.get("status").textContent, /incomplets.*Agent indisponible/);
+});
+
+test("arrête la recherche après la requête en cours", async () => {
+  let release;
+  const pending = new Promise((resolve) => { release = resolve; });
+  let calls = 0;
+  const viewer = createViewer(async () => { calls++; await pending; return jsonResponse({ ok: true, mounted: true, outlookRunning: true }); });
+  viewer.elements.get("archive").options = [{ value: "first.pst", textContent: "2021" }];
+  const search = viewer.run('searchArchives("test")');
+  viewer.elements.get("search-cancel").listeners.click();
+  release();
+  await search;
+  assert.equal(calls, 1);
+  assert.match(viewer.elements.get("status").textContent, /arrêtée.*incomplets/);
+});
+
+test("demande au parent de masquer le visualiseur intégré", () => {
+  const viewer = createViewer(async () => {});
+  viewer.run(`window.parent = { postMessage(message, origin) { window.sent = { message, origin }; } }`);
+  viewer.elements.get("close-viewer").listeners.click();
+  assert.equal(viewer.run("window.sent.message.type"), "close-local-viewer");
+  assert.equal(viewer.run("window.sent.origin"), "https://dellasiegaps.github.io");
+});
+
+test("prépare un brouillon local avec réponse à tous, Cc et Cci éditables", () => {
+  const viewer = createViewer(async () => {});
+  viewer.run(`selectedMessage = {
+    subject: "Sujet", sender: "Alice", to: "Bob", cc: "Claire", date: "", body: "Contenu",
+    senderContact: { address: "alice@example.test" },
+    recipients: [
+      { type: 1, contact: { address: "bob@example.test" } },
+      { type: 2, contact: { address: "claire@example.test" } },
+      { type: 2, contact: { address: "" } }
+    ]
+  }; prepareDraft("reply-all")`);
+  assert.equal(viewer.elements.get("compose-to").value, "alice@example.test; bob@example.test");
+  assert.equal(viewer.elements.get("compose-cc").value, "claire@example.test");
+  assert.equal(viewer.elements.get("compose-bcc").value, "");
+  assert.match(viewer.elements.get("compose-body").value, /Contenu/);
+  assert.match(viewer.elements.get("compose-warning").textContent, /indisponibles/);
+  viewer.run('prepareDraft("forward")');
+  assert.equal(viewer.elements.get("compose-to").value, "");
+  assert.equal(viewer.elements.get("compose-subject").value, "TR: Sujet");
+});
+
+test("préremplit le lien Outlook Web sans envoi et bloque les liens trop longs", () => {
+  const viewer = createViewer(async () => {});
+  const elements = viewer.elements;
+  for (const [id, value] of [
+    ["compose-to", "alice@example.test"], ["compose-cc", "bob@example.test"],
+    ["compose-bcc", "carol@example.test"], ["compose-subject", "Sujet & réponse"],
+    ["compose-body", "Texte privé"]
+  ]) {
+    viewer.run(`document.getElementById(${JSON.stringify(id)})`);
+    elements.get(id).value = value;
+  }
+  let blocked = false;
+  const link = elements.get("open-compose");
+  link.listeners.click({ currentTarget: link, preventDefault() { blocked = true; } });
+  const url = new URL(link.href);
+  assert.equal(url.origin, "https://outlook.office.com");
+  assert.equal(url.searchParams.get("bcc"), "carol@example.test");
+  assert.equal(url.searchParams.get("subject"), "Sujet & réponse");
+  assert.equal(url.searchParams.get("body"), "Texte privé");
+  assert.equal(blocked, false);
+  elements.get("compose-body").value = "x".repeat(3000);
+  link.listeners.click({ currentTarget: link, preventDefault() { blocked = true; } });
+  assert.equal(blocked, true);
+  assert.match(elements.get("compose-warning").textContent, /trop long/);
 });

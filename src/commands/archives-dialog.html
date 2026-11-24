@@ -63,7 +63,7 @@
   </div>
   <section id="viewer-panel" hidden>
     <p>Si le visualiseur ne s'affiche pas, vérifiez l'agent local ou utilisez l'onglet séparé.</p>
-    <iframe id="viewer-frame" title="Visualiseur des archives locales" sandbox="allow-scripts allow-same-origin allow-downloads allow-top-navigation-by-user-activation"></iframe>
+    <iframe id="viewer-frame" title="Visualiseur des archives locales" sandbox="allow-scripts allow-same-origin allow-downloads allow-top-navigation-by-user-activation allow-popups allow-popups-to-escape-sandbox"></iframe>
   </section>
   <div class="footer">
     <button id="modop" type="button">Modop</button>
@@ -80,6 +80,8 @@
     const details = {};
     const busy = {};
     let refreshing = false;
+    let refreshPending = false;
+    let officeReady = false;
     const listEl = document.getElementById("list");
     const msgEl = document.getElementById("msg");
     const viewerLink = document.getElementById("agent-view");
@@ -121,12 +123,19 @@
     viewerPanel.hidden = true;
     viewerLink.href = CONFIG.agentViewUrl || PST_AGENT + "/view";
 
-    viewerToggle.addEventListener("click", () => {
-      viewerPanel.hidden = !viewerPanel.hidden;
-      const expanded = !viewerPanel.hidden;
+    function setViewerExpanded(expanded) {
+      viewerPanel.hidden = !expanded;
       viewerToggle.setAttribute("aria-expanded", String(expanded));
       viewerToggle.textContent = expanded ? "Masquer le visualiseur" : "Afficher le visualiseur ici";
       if (expanded && !viewerFrame.getAttribute("src")) viewerFrame.src = viewerLink.href;
+    }
+    viewerToggle.addEventListener("click", () => setViewerExpanded(viewerPanel.hidden));
+    window.addEventListener("message", (event) => {
+      if (event.origin === new URL(viewerLink.href).origin &&
+          event.source === viewerFrame.contentWindow &&
+          event.data && event.data.type === "close-local-viewer") {
+        setViewerExpanded(false);
+      }
     });
 
     const isWeb = () => Office.context.platform === Office.PlatformType.OfficeOnline;
@@ -207,7 +216,11 @@
     }
 
     async function refreshStates() {
-      if (refreshing || Object.values(busy).some(Boolean)) return;
+      if (refreshing || Object.values(busy).some(Boolean)) {
+        refreshPending = true;
+        return;
+      }
+      refreshPending = false;
       refreshing = true;
       beginProgress(Object.keys(ARCHIVES).map((year) => "Vérifier l'archive " + year));
       msgEl.textContent = "Vérification des archives…";
@@ -234,6 +247,7 @@
       refreshing = false;
       endProgress(!failed);
       render();
+      if (refreshPending) refreshStates();
     }
 
     async function toggle(year) {
@@ -271,10 +285,17 @@
       }
       busy[year] = false;
       render();
+      if (refreshPending) refreshStates();
     }
 
     document.getElementById("modop").addEventListener("click", () => window.open("https://dellasiegaps.github.io/MesArchivesAddin/docs/Fiche%20pratique%20-%20Exchange%20Online.pdf", "_blank", "noopener"));
     document.getElementById("refresh").addEventListener("click", refreshStates);
+    document.addEventListener("visibilitychange", () => {
+      if (officeReady && document.visibilityState === "visible") refreshStates();
+    });
+    window.addEventListener("focus", () => {
+      if (officeReady && document.visibilityState === "visible") refreshStates();
+    });
     document.getElementById("close").addEventListener("click", () => {
       try {
         Office.context.ui.messageParent(JSON.stringify({ type: "close" }));
@@ -284,7 +305,10 @@
       }
     });
     render();
-    Office.onReady(refreshStates);
+    Office.onReady(() => {
+      officeReady = true;
+      return refreshStates();
+    });
   </script>
 </body>
 </html>

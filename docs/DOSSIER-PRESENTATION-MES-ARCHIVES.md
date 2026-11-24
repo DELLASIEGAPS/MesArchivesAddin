@@ -26,7 +26,7 @@ Le parcours détaillé et les commandes de démarrage figurent dans [VISUALISEUR
 ### Limites fonctionnelles
 
 - Messages uniquement : les rendez-vous, contacts et autres éléments ne sont pas affichés. Listes de 50 éléments du dossier par page ; les éléments non-messages comptent dans la pagination.
-- Pas de rendu HTML ou d'images intégrées, pas de recherche globale, pas de réponse ou transfert du message archivé ; un lien d'adresse crée un nouveau message.
+- Pas de rendu HTML ou d'images intégrées. La recherche parcourt les messages des archives montées et peut être longue ; les archives non montées sont exclues. Les actions de réponse et de transfert préparent un nouveau message Outlook Web via une URL contenant ses champs : ni le fil ni les pièces jointes ne sont repris automatiquement. Les données de l'URL peuvent apparaître dans l'historique ou des journaux.
 - La résolution SMTP dépend des informations présentes dans Outlook et, pour certains correspondants Exchange, de l'annuaire accessible. Elle peut être indisponible ou déclencher des restrictions de sécurité Outlook.
 - Le visualiseur est en lecture seule fonctionnelle. Outlook peut néanmoins modifier des données internes du PST monté. Il ne faut pas interpréter cela comme une garantie d'immuabilité.
 - La copie locale de travail est réutilisée et n'est pas automatiquement mise à jour si la source change. Les autres applications locales et les téléchargements restent soumis aux règles de sécurité du poste.

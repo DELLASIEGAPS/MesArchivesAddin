@@ -21,6 +21,9 @@ function createDialog(fetch, config = {}) {
     };
   }
   const document = {
+    listeners: {},
+    visibilityState: "visible",
+    addEventListener(name, callback) { this.listeners[name] = callback; },
     getElementById(id) {
       if (!elements.has(id)) elements.set(id, element());
       return elements.get(id);
@@ -39,9 +42,10 @@ function createDialog(fetch, config = {}) {
   };
   const html = fs.readFileSync(path.join(__dirname, "archives-dialog.html"), "utf8");
   const script = html.match(/<script>\s*([\s\S]*?)<\/script>/)[1];
+  const window = { MES_ARCHIVES_CONFIG: config, listeners: {}, open() {}, addEventListener(name, callback) { this.listeners[name] = callback; } };
   const context = vm.createContext({
     document, Office, fetch, AbortSignal, URL, console, setTimeout, clearTimeout,
-    window: { MES_ARCHIVES_CONFIG: config, open() {} },
+    window,
   });
   vm.runInContext(script, context);
   return {
@@ -57,8 +61,30 @@ function createDialog(fetch, config = {}) {
     progressBar: () => elements.get("progress-bar"),
     close: () => elements.get("close").click(),
     messages,
+    document,
+    window,
   };
 }
+
+test("actualise au retour sur la fenêtre sans actualiser lorsqu'elle est masquée", async () => {
+  let count = 0;
+  const dialog = createDialog(async () => {
+    count++;
+    return response({ ok: true, exists: true, mounted: false });
+  });
+  await dialog.start();
+  assert.equal(count, 4);
+  dialog.document.visibilityState = "hidden";
+  dialog.document.listeners.visibilitychange();
+  assert.equal(count, 4);
+  dialog.document.visibilityState = "visible";
+  dialog.document.listeners.visibilitychange();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(count, 8);
+  dialog.window.listeners.focus();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(count, 12);
+});
 
 test("propose le visualiseur intégré et un onglet séparé", () => {
   const rendered = createDialog(async () => {}, { agentViewUrl: "http://127.0.0.1:45731/view" });
@@ -79,6 +105,19 @@ test("ferme la boîte de dialogue même lorsque le visualiseur est ouvert", () =
   dialog.viewerToggle().click();
   dialog.close();
   assert.equal(dialog.messages[0].type, "close");
+});
+
+test("masque le visualiseur uniquement à la demande de sa propre fenêtre locale", () => {
+  const dialog = createDialog(async () => {});
+  const frameWindow = {};
+  dialog.viewerFrame().contentWindow = frameWindow;
+  dialog.viewerToggle().click();
+  dialog.window.listeners.message({ origin: "https://example.com", source: frameWindow, data: { type: "close-local-viewer" } });
+  assert.equal(dialog.viewerPanel().hidden, false);
+  dialog.window.listeners.message({ origin: "http://127.0.0.1:45731", source: {}, data: { type: "close-local-viewer" } });
+  assert.equal(dialog.viewerPanel().hidden, false);
+  dialog.window.listeners.message({ origin: "http://127.0.0.1:45731", source: frameWindow, data: { type: "close-local-viewer" } });
+  assert.equal(dialog.viewerPanel().hidden, true);
 });
 
 test("affiche patienter après une seconde et termine la progression par étapes", async () => {

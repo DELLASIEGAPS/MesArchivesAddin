@@ -7,7 +7,7 @@
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; font: 14px "Segoe UI", sans-serif; color: #242424; background: #fff; }
-    button, select { font: inherit; }
+    button, select, input, textarea { font: inherit; }
     button { cursor: pointer; }
     button:disabled { cursor: default; opacity: .5; }
     button:focus-visible, select:focus-visible { outline: 2px solid #0078d4; outline-offset: -2px; }
@@ -19,6 +19,9 @@
       padding: 5px 10px; border: 1px solid #bdbdbd; background: #fff; border-radius: 2px;
     }
     .toolbar button:hover:not(:disabled), .pagination button:hover:not(:disabled) { background: #e8f3fb; }
+    .search { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+    .search input { flex: 1 1 240px; padding: 5px 8px; }
+    .search button { padding: 5px 10px; }
     #status { min-height: 20px; padding: 2px 20px; color: #9a4f00; font-size: 12px; }
     .columns { display: grid; grid-template-columns: minmax(170px, 22%) minmax(210px, 27%) minmax(0, 1fr); min-height: 420px; border-top: 1px solid #ddd; }
     .panel { min-width: 0; border-right: 1px solid #ddd; }
@@ -49,6 +52,11 @@
     #attachments h3 { margin: 0 0 8px; font-size: 14px; }
     .link { border: 0; padding: 4px 0; background: none; color: #0067b8; text-align: left; text-decoration: underline; overflow-wrap: anywhere; }
     .message-meta a { color: #0067b8; }
+    .message-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+    #compose { margin-top: 20px; border-top: 1px solid #ccc; padding-top: 12px; }
+    #compose label { display: block; margin-top: 8px; }
+    #compose input, #compose textarea { display: block; width: 100%; padding: 6px; }
+    #compose textarea { min-height: 180px; }
     #progress { padding: 0 20px 8px; font-size: 12px; }
     #progress progress { width: 100%; height: 8px; }
     #progress-steps { display: flex; flex-wrap: wrap; gap: 4px 20px; margin: 3px 0; padding-left: 20px; }
@@ -74,7 +82,14 @@
     </select>
     <button id="open" type="button">Afficher</button>
     <button id="back" type="button" disabled>Dossier parent</button>
+    <button id="close-viewer" type="button">Fermer le visualiseur</button>
   </div>
+  <form id="search-form" class="search" role="search">
+    <label for="search-query">Rechercher dans toutes les archives montées :</label>
+    <input id="search-query" type="search" required placeholder="Objet, expéditeur ou texte du message">
+    <button id="search-submit" type="submit">Rechercher</button>
+    <button id="search-cancel" type="button" disabled>Arrêter</button>
+  </form>
   </header>
   <div id="status" role="status"></div>
   <section id="progress" aria-label="Progression de l'opération" aria-live="polite" hidden>
@@ -104,6 +119,11 @@
       <p id="reading-placeholder" class="meta">Sélectionnez un message pour le lire.</p>
       <article id="message-detail" hidden>
         <h2 id="subject"></h2>
+        <div class="message-actions">
+          <button id="reply" type="button">Répondre</button>
+          <button id="reply-all" type="button">Répondre à tous</button>
+          <button id="forward" type="button">Transférer</button>
+        </div>
         <div class="message-meta">
         <p id="from"></p>
         <p id="to"></p>
@@ -113,6 +133,20 @@
         <pre id="body"></pre>
         <section id="attachments"><h3>Pièces jointes</h3><ul id="attachment-list"></ul></section>
       </article>
+      <section id="compose" hidden aria-label="Préparer un brouillon">
+        <h2>Préparer un brouillon</h2>
+        <p>Le lien préremplit Outlook Web : destinataires, objet et texte seront présents dans l'URL et peuvent apparaître dans l'historique ou des journaux. Vérifiez les destinataires, notamment votre propre adresse.</p>
+        <p>Il s'agit d'un nouveau message : le fil et les pièces jointes ne sont pas repris automatiquement. Téléchargez et joignez les fichiers nécessaires séparément.</p>
+        <p id="compose-warning" role="status"></p>
+        <label for="compose-to">À</label><input id="compose-to" type="text">
+        <label for="compose-cc">Cc</label><input id="compose-cc" type="text">
+        <label for="compose-bcc">Cci</label><input id="compose-bcc" type="text">
+        <label for="compose-subject">Objet</label><input id="compose-subject" type="text">
+        <label for="compose-body">Message</label><textarea id="compose-body"></textarea>
+        <p><a id="open-compose" href="https://outlook.office.com/mail/" target="_blank" rel="noopener noreferrer">Ouvrir le brouillon dans Outlook Web</a></p>
+        <p>Si le message est trop long ou si le préremplissage échoue, <a href="https://outlook.office.com/mail/" target="_blank" rel="noopener noreferrer">ouvrir Outlook Web sans préremplissage</a> et copier les champs manuellement.</p>
+        <button id="compose-hide" type="button">Masquer le brouillon préparé</button>
+      </section>
     </section>
   </main>
   <script>
@@ -131,6 +165,9 @@
     let nextOffset = null;
     let requestId = 0;
     let progressId = 0;
+    let searchActive = false;
+    let selectedMessage = null;
+    let draftPrepared = false;
     let progressTimer;
     const progressEl = document.getElementById("progress");
     const progressLabel = document.getElementById("progress-label");
@@ -190,11 +227,11 @@
       });
     }
 
-    async function request(route, data, binary = false) {
+    async function request(route, data, binary = false, fileName = archive.value) {
       const response = await fetch(route, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileName: archive.value, ...data })
+        body: JSON.stringify({ fileName, ...data })
       });
       if (!response.ok) {
         const error = await response.json();
@@ -220,6 +257,7 @@
     function clearReading() {
       detail.hidden = true;
       placeholder.hidden = false;
+      selectedMessage = null;
     }
 
     function formatDate(value) {
@@ -334,6 +372,7 @@
       try {
         const message = await request("/message", { itemId });
         if (current !== requestId) return;
+        selectedMessage = message;
         progress.update(1);
         document.getElementById("subject").textContent = message.subject || "(Sans objet)";
         renderContacts("from", "De", message.senderContact ? [message.senderContact] : [], message.sender);
@@ -382,9 +421,189 @@
       }
     }
 
+    function prepareDraft(kind) {
+      if (!selectedMessage) return;
+      if (draftPrepared && !window.confirm("Remplacer le brouillon préparé dans le visualiseur ? Les modifications non copiées seront perdues.")) return;
+      const message = selectedMessage;
+      const addressPattern = /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+      const to = [];
+      const cc = [];
+      let missing = false;
+      function add(target, contact) {
+        const address = contact && contact.address;
+        if (!address || !addressPattern.test(address)) { missing = true; return; }
+        if (![...to, ...cc].some((value) => value.toLowerCase() === address.toLowerCase())) target.push(address);
+      }
+      if (kind !== "forward") add(to, message.senderContact);
+      if (kind === "reply-all") {
+        for (const recipient of message.recipients || []) add(recipient.type === 2 ? cc : to, recipient.contact);
+      }
+      const prefix = kind === "forward" ? "TR: " : "RE: ";
+      const original = [
+        "----- Message d'origine -----",
+        "De : " + (message.sender || ""),
+        "À : " + (message.to || ""),
+        "Cc : " + (message.cc || ""),
+        "Date : " + formatDate(message.date),
+        "Objet : " + (message.subject || ""),
+        "",
+        message.body || ""
+      ].join("\n");
+      document.getElementById("compose-to").value = to.join("; ");
+      document.getElementById("compose-cc").value = cc.join("; ");
+      document.getElementById("compose-bcc").value = "";
+      document.getElementById("compose-subject").value = prefix + (message.subject || "");
+      document.getElementById("compose-body").value = "\n\n" + original;
+      document.getElementById("compose-warning").textContent = missing
+        ? "Certaines adresses sont indisponibles : complétez-les avant l'envoi."
+        : "Vérifiez les adresses avant l'envoi. Les destinataires Cci d'origine ne sont pas disponibles.";
+      document.getElementById("compose").hidden = false;
+      draftPrepared = true;
+    }
+    document.getElementById("reply").addEventListener("click", () => prepareDraft("reply"));
+    document.getElementById("reply-all").addEventListener("click", () => prepareDraft("reply-all"));
+    document.getElementById("forward").addEventListener("click", () => prepareDraft("forward"));
+    document.getElementById("compose-hide").addEventListener("click", () => {
+      document.getElementById("compose").hidden = true;
+    });
+    document.getElementById("open-compose").addEventListener("click", (event) => {
+      const url = new URL("https://outlook.office.com/mail/deeplink/compose");
+      for (const [parameter, id] of [
+        ["to", "compose-to"], ["cc", "compose-cc"], ["bcc", "compose-bcc"],
+        ["subject", "compose-subject"], ["body", "compose-body"]
+      ]) {
+        const value = document.getElementById(id).value;
+        if (value) url.searchParams.set(parameter, value);
+      }
+      if (url.href.length > 2000) {
+        event.preventDefault();
+        document.getElementById("compose-warning").textContent =
+          "Le message est trop long pour un lien fiable. Ouvrez Outlook Web sans préremplissage et copiez les champs manuellement.";
+        return;
+      }
+      event.currentTarget.href = url.href;
+    });
+    document.getElementById("close-viewer").addEventListener("click", () => {
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: "close-local-viewer" }, "https://dellasiegaps.github.io");
+      } else {
+        window.close();
+        status.textContent = "Si l'onglet reste ouvert, fermez-le avec la croix du navigateur.";
+      }
+    });
+
     function openArchive() {
       showFolder("", 0, []);
     }
+    async function searchArchives(query) {
+      const current = ++requestId;
+      const submit = document.getElementById("search-submit");
+      const cancel = document.getElementById("search-cancel");
+      const progress = beginProgress(["Parcourir les archives montées", "Afficher les résultats"]);
+      searchActive = true;
+      submit.disabled = true;
+      cancel.disabled = false;
+      clearReading();
+      folders.textContent = "";
+      folderPath.textContent = "";
+      messages.textContent = "";
+      back.disabled = true;
+      previous.disabled = true;
+      next.disabled = true;
+      document.getElementById("page-info").textContent = "";
+      document.getElementById("folder-name").textContent = "Résultats de recherche";
+      const needle = query.toLocaleLowerCase();
+      let found = 0;
+      let mounted = 0;
+      try {
+        for (const option of archive.options) {
+          if (current !== requestId) return;
+          const fileName = option.value;
+          const state = await request("/state", {}, false, fileName);
+          if (current !== requestId) return;
+          if (!state.outlookRunning) throw new Error("Outlook classique n'est pas ouvert.");
+          if (!state.mounted) continue;
+          mounted++;
+          const pending = [{ id: "", name: option.textContent }];
+          while (pending.length) {
+            const folder = pending.pop();
+            let pageOffset = 0;
+            do {
+              if (current !== requestId) return;
+              status.textContent = "Recherche : " + fileName + " — " + folder.name + " (" + found + " résultat(s))";
+              const page = await request("/folder", { folderId: folder.id, offset: pageOffset }, false, fileName);
+              if (current !== requestId) return;
+              if (pageOffset === 0) {
+                for (const child of page.folders) pending.push({ id: child.id, name: folder.name + " / " + child.name });
+              }
+              for (const message of page.messages) {
+                if (current !== requestId) return;
+                let match = [message.subject, message.sender].some((value) => (value || "").toLocaleLowerCase().includes(needle));
+                if (!match) {
+                  const detail = await request("/message", { itemId: message.id }, false, fileName);
+                  if (current !== requestId) return;
+                  match = (detail.body || "").toLocaleLowerCase().includes(needle);
+                }
+                if (!match) continue;
+                found++;
+                const item = document.createElement("li");
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "message-button";
+                [["message-sender", message.sender || "Expéditeur inconnu"], ["message-subject", message.subject || "(Sans objet)"], ["message-date", folder.name + " — " + formatDate(message.date)]].forEach(([className, text]) => {
+                  const line = document.createElement("span");
+                  line.className = className;
+                  line.textContent = text;
+                  button.appendChild(line);
+                });
+                button.addEventListener("click", () => {
+                  if (searchActive) {
+                    status.textContent = "Attendez la fin de la recherche ou arrêtez-la avant d'ouvrir un résultat.";
+                    return;
+                  }
+                  archive.value = fileName;
+                  showMessage(message.id, button);
+                });
+                item.appendChild(button);
+                messages.appendChild(item);
+              }
+              pageOffset = page.nextOffset;
+            } while (pageOffset !== null);
+          }
+        }
+        if (current !== requestId) return;
+        progress.update(1);
+        status.textContent = mounted
+          ? found + " résultat(s) dans " + mounted + " archive(s) montée(s). Les archives non montées ne sont pas recherchées."
+          : "Aucune archive montée : chargez une archive avant de rechercher.";
+        progress.end(true);
+      } catch (error) {
+        if (current !== requestId) return;
+        status.textContent = "Recherche interrompue ; les résultats affichés peuvent être incomplets : " + error.message;
+        progress.end(false);
+      } finally {
+        searchActive = false;
+        submit.disabled = false;
+        cancel.disabled = true;
+      }
+    }
+    document.getElementById("search-form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const query = document.getElementById("search-query").value.trim();
+      if (!query) {
+        status.textContent = "Saisissez un texte à rechercher.";
+        return;
+      }
+      if (!searchActive) searchArchives(query);
+    });
+    document.getElementById("search-cancel").addEventListener("click", () => {
+      if (!searchActive) return;
+      requestId++;
+      progressId++;
+      clearTimeout(progressTimer);
+      progressEl.hidden = true;
+      status.textContent = "Recherche arrêtée ; les résultats affichés sont incomplets.";
+    });
     document.getElementById("open").addEventListener("click", openArchive);
     archive.addEventListener("change", openArchive);
     back.addEventListener("click", () => {
