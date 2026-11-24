@@ -30,7 +30,7 @@ $item = [pscustomobject]@{
   Class = 43; EntryID = "mail-1"; Subject = "Sujet"; SenderName = "Expéditeur"
   Sender = [pscustomobject]@{ Type = "SMTP"; Address = "sender@example.test" }
   Recipients = @([pscustomobject]@{ Type = 1; Name = "Destinataire"; AddressEntry = [pscustomobject]@{ Type = "SMTP"; Address = "recipient@example.test" } })
-  To = "Destinataire"; CC = ""; ReceivedTime = [datetime]"2026-01-02T03:04:05"
+  To = "Destinataire"; CC = ""; BCC = "Copie cachée"; ReceivedTime = [datetime]"2026-01-02T03:04:05"
   Body = "Contenu de test"; Parent = [pscustomobject]@{ StoreID = "store-1" }
   Attachments = (Collection @($attachment))
 }
@@ -51,6 +51,7 @@ $last = Get-ArchiveFolderContents $archive "" 50
 Assert ($last.messages.Count -eq 1 -and $null -eq $last.nextOffset) "Dernière page incorrecte"
 $message = Get-ArchiveMessage $archive "mail-1"
 Assert ($message.body -eq "Contenu de test" -and $message.attachments.Count -eq 1) "Détail du message incorrect"
+Assert ($message.bcc -eq "Copie cachée") "Destinataire Cci indisponible pour la recherche"
 Assert ($message.senderContact.address -eq "sender@example.test" -and $message.recipients[0].contact.address -eq "recipient@example.test") "Adresses SMTP incorrectes"
 $exchangeEntry = [pscustomobject]@{ Type = "EX" }
 $exchangeEntry | Add-Member ScriptMethod GetExchangeUser { [pscustomobject]@{ PrimarySmtpAddress = "exchange@example.test" } }
