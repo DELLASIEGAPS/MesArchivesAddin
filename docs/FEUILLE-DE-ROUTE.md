@@ -92,6 +92,55 @@ Windows avant présentation; le code n'a pas été validé avec Outlook réel ic
 
 ## Points ouverts
 
+
+installe :
+
+Plain Text
+local-pst-agent.ps1
+
+ou mieux :
+
+Plain Text
+MesArchivesAgent.exe
+
+sur tous les postes.
+
+C'est ce que font :
+
+Citrix Workspace
+Zoom
+Teams Machine Wide Installer
+VMware Horizon
+Scénario 2 - Service Windows
+
+Au lieu d'un .ps1 :
+
+Plain Text
+MesArchivesAgent.exe
+
+installé comme :
+
+Plain Text
+Windows Service
+ 
+
+qui écoute :
+
+Plain Text
+127.0.0.1:45731
+ 
+
+C'est beaucoup plus défendable devant Robin.
+
+Architecture :
+
+Plain Text
+Poste BDF
+↓
+Service Windows MesArchives
+↓
+Outlook
+
 1. Lien de la modop
 2. Cohérence de la sécurité : l'agent n'accepte que l'origine `https://dellasiegaps.github.io`
 3. Hébergement définitif : GitHub Pages convient pour la démo, un hébergement interne est à prévoir pour la production
