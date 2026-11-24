@@ -1,0 +1,33 @@
+name: Azure OIDC smoke test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  verify-azure-access:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: azure-test
+    steps:
+      - name: Sign in to Azure with GitHub OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify access to the test resource group
+        env:
+          EXPECTED_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          set -euo pipefail
+          actual_subscription="$(az account show --query id --output tsv)"
+          test "$actual_subscription" = "$EXPECTED_SUBSCRIPTION_ID"
+          az group show \
+            --name rg-mesarchives-test \
+            --query '{name:name, location:location, id:id}' \
+            --output json

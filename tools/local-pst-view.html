@@ -1,0 +1,643 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MesArchives - visualiseur local</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 14px "Segoe UI", sans-serif; color: #242424; background: #fff; }
+    button, select, input, textarea { font: inherit; }
+    button { cursor: pointer; }
+    button:disabled { cursor: default; opacity: .5; }
+    button:focus-visible, select:focus-visible { outline: 2px solid #0078d4; outline-offset: -2px; }
+    .header { padding: 14px 20px 10px; background: #f5f5f5; border-bottom: 1px solid #d1d1d1; }
+    .header h1 { font-size: 18px; margin: 0 0 5px; font-weight: 600; }
+    .header p { color: #555; font-size: 12px; margin: 0 0 12px; }
+    .toolbar, .pagination { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .toolbar button, .toolbar select, .pagination button {
+      padding: 5px 10px; border: 1px solid #bdbdbd; background: #fff; border-radius: 2px;
+    }
+    .toolbar button:hover:not(:disabled), .pagination button:hover:not(:disabled) { background: #e8f3fb; }
+    .search { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+    .search input { flex: 1 1 240px; padding: 5px 8px; }
+    .search button { padding: 5px 10px; }
+    #status { min-height: 20px; padding: 2px 20px; color: #9a4f00; font-size: 12px; }
+    .columns { display: grid; grid-template-columns: minmax(170px, 22%) minmax(210px, 27%) minmax(0, 1fr); min-height: 420px; border-top: 1px solid #ddd; }
+    .panel { min-width: 0; border-right: 1px solid #ddd; }
+    .folder-panel { background: #f4f4f4; }
+    .panel-heading { margin: 0; padding: 14px 14px 10px; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+    .panel-description { margin: 0; padding: 0 14px 10px; }
+    ul { list-style: none; padding: 0; margin: 0; }
+    .folder-button, .message-button, .path-button { width: 100%; border: 0; background: transparent; color: inherit; text-align: left; font: inherit; }
+    .folder-button, .path-button { padding: 8px 14px; overflow-wrap: anywhere; }
+    .folder-button:hover, .path-button:hover, .message-button:hover { background: #e5e5e5; }
+    .path-button.current { background: #dcecf8; color: #005a9e; font-weight: 600; }
+    .folder-count { float: right; color: #666; font-size: 12px; margin-left: 6px; }
+    .message-button { display: block; padding: 10px 12px; border-bottom: 1px solid #e3e3e3; border-left: 3px solid transparent; }
+    .message-button.selected { background: #cfe7f7; border-left-color: #0078d4; }
+    .message-sender, .message-subject, .message-date { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .message-sender { font-weight: 600; }
+    .message-subject { margin-top: 3px; }
+    .message-date, .meta { color: #666; font-size: 12px; }
+    .message-date { margin-top: 4px; }
+    .empty { color: #666; padding: 10px 14px; font-size: 12px; }
+    .pagination { padding: 12px; }
+    .reading-panel { border-right: 0; padding: 18px 22px; }
+    .reading-panel h2 { margin: 0 0 18px; font-size: 19px; font-weight: 600; overflow-wrap: anywhere; }
+    .reading-panel p { margin: 5px 0; overflow-wrap: anywhere; }
+    .message-meta { padding-bottom: 14px; border-bottom: 1px solid #e3e3e3; }
+    #body { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; line-height: 1.5; margin: 18px 0; }
+    #attachments { border-top: 1px solid #e3e3e3; padding-top: 12px; }
+    #attachments h3 { margin: 0 0 8px; font-size: 14px; }
+    .link { border: 0; padding: 4px 0; background: none; color: #0067b8; text-align: left; text-decoration: underline; overflow-wrap: anywhere; }
+    .message-meta a { color: #0067b8; }
+    .message-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+    #compose { margin-top: 20px; border-top: 1px solid #ccc; padding-top: 12px; }
+    #compose label { display: block; margin-top: 8px; }
+    #compose input, #compose textarea { display: block; width: 100%; padding: 6px; }
+    #compose textarea { min-height: 180px; }
+    #progress { padding: 0 20px 8px; font-size: 12px; }
+    #progress progress { width: 100%; height: 8px; }
+    #progress-steps { display: flex; flex-wrap: wrap; gap: 4px 20px; margin: 3px 0; padding-left: 20px; }
+    [hidden] { display: none !important; }
+    @media (max-width: 700px) {
+      .columns { grid-template-columns: minmax(145px, 35%) minmax(0, 1fr); height: auto; min-height: 0; }
+      .folder-panel, .message-panel { min-height: 220px; }
+      .reading-panel { grid-column: 1 / -1; min-height: 250px; border-top: 1px solid #ddd; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+  <h1>Archives montées (local)</h1>
+  <p>Outlook classique doit être ouvert et le PST chargé. Lecture seule : messages en texte brut ; pièces jointes téléchargées à votre demande.</p>
+  <div class="toolbar">
+    <label for="archive">Archive :</label>
+    <select id="archive">
+      <option value="ADR_2021.pst">2021</option>
+      <option value="ADR_2022.pst">2022</option>
+      <option value="ADR_2023.pst">2023</option>
+      <option value="ADR.pst">2024</option>
+    </select>
+    <button id="open" type="button">Afficher</button>
+    <button id="back" type="button" disabled>Dossier parent</button>
+    <button id="close-viewer" type="button">Fermer le visualiseur</button>
+  </div>
+  <form id="search-form" class="search" role="search">
+    <label for="search-query">Rechercher dans toutes les archives montées :</label>
+    <input id="search-query" type="search" required placeholder="Objet, participants, date, texte ou pièce jointe">
+    <button id="search-submit" type="submit">Rechercher</button>
+    <button id="search-cancel" type="button" disabled>Arrêter</button>
+  </form>
+  </header>
+  <div id="status" role="status"></div>
+  <section id="progress" aria-label="Progression de l'opération" aria-live="polite" hidden>
+    <div id="progress-label"></div>
+    <progress id="progress-bar" value="0" max="1"></progress>
+    <ol id="progress-steps"></ol>
+  </section>
+  <main class="columns">
+    <nav class="panel folder-panel" aria-label="Dossiers de l’archive">
+      <h2 class="panel-heading">Dossiers</h2>
+      <ul id="folder-path"></ul>
+      <ul id="folders"></ul>
+    </nav>
+    <section class="panel message-panel" aria-label="Liste des messages">
+      <div id="message-list">
+        <h2 id="folder-name" class="panel-heading">Messages</h2>
+        <p class="meta panel-description">Jusqu’à 50 éléments par page ; seuls les messages sont affichés.</p>
+        <ul id="messages"></ul>
+        <div class="pagination">
+          <button id="previous" type="button" disabled>Page précédente</button>
+          <button id="next" type="button" disabled>Page suivante</button>
+          <span id="page-info" class="meta"></span>
+        </div>
+      </div>
+    </section>
+    <section class="panel reading-panel" aria-label="Volet de lecture">
+      <p id="reading-placeholder" class="meta">Sélectionnez un message pour le lire.</p>
+      <article id="message-detail" hidden>
+        <h2 id="subject"></h2>
+        <div class="message-actions">
+          <button id="reply" type="button">Répondre</button>
+          <button id="reply-all" type="button">Répondre à tous</button>
+          <button id="forward" type="button">Transférer</button>
+        </div>
+        <div class="message-meta">
+        <p id="from"></p>
+        <p id="to"></p>
+        <p id="cc"></p>
+        <p id="date"></p>
+        </div>
+        <pre id="body"></pre>
+        <section id="attachments"><h3>Pièces jointes</h3><ul id="attachment-list"></ul></section>
+      </article>
+      <section id="compose" hidden aria-label="Préparer un brouillon">
+        <h2>Préparer un brouillon</h2>
+        <p>Le lien préremplit Outlook Web : destinataires, objet et texte seront présents dans l'URL et peuvent apparaître dans l'historique ou des journaux. Vérifiez les destinataires, notamment votre propre adresse.</p>
+        <p>Il s'agit d'un nouveau message : le fil et les pièces jointes ne sont pas repris automatiquement. Téléchargez et joignez les fichiers nécessaires séparément.</p>
+        <p id="compose-warning" role="status"></p>
+        <label for="compose-to">À</label><input id="compose-to" type="text">
+        <label for="compose-cc">Cc</label><input id="compose-cc" type="text">
+        <label for="compose-bcc">Cci</label><input id="compose-bcc" type="text">
+        <label for="compose-subject">Objet</label><input id="compose-subject" type="text">
+        <label for="compose-body">Message</label><textarea id="compose-body"></textarea>
+        <p><a id="open-compose" href="https://outlook.office.com/mail/" target="_blank" rel="noopener noreferrer">Ouvrir le brouillon dans Outlook Web</a></p>
+        <p>Si le message est trop long ou si le préremplissage échoue, <a href="https://outlook.office.com/mail/" target="_blank" rel="noopener noreferrer">ouvrir Outlook Web sans préremplissage</a> et copier les champs manuellement.</p>
+        <button id="compose-hide" type="button">Masquer le brouillon préparé</button>
+      </section>
+    </section>
+  </main>
+  <script>
+    const archive = document.getElementById("archive");
+    const status = document.getElementById("status");
+    const folders = document.getElementById("folders");
+    const folderPath = document.getElementById("folder-path");
+    const messages = document.getElementById("messages");
+    const previous = document.getElementById("previous");
+    const next = document.getElementById("next");
+    const back = document.getElementById("back");
+    const detail = document.getElementById("message-detail");
+    const placeholder = document.getElementById("reading-placeholder");
+    let path = [];
+    let offset = 0;
+    let nextOffset = null;
+    let requestId = 0;
+    let progressId = 0;
+    let searchActive = false;
+    let selectedMessage = null;
+    let draftPrepared = false;
+    let progressTimer;
+    const progressEl = document.getElementById("progress");
+    const progressLabel = document.getElementById("progress-label");
+    const progressBar = document.getElementById("progress-bar");
+    const progressSteps = document.getElementById("progress-steps");
+
+    function beginProgress(steps) {
+      const id = ++progressId;
+      clearTimeout(progressTimer);
+      progressEl.hidden = false;
+      progressLabel.textContent = "Opération en cours…";
+      progressBar.max = steps.length;
+      function update(completed) {
+        if (id !== progressId) return;
+        progressBar.value = completed;
+        progressSteps.textContent = "";
+        steps.forEach((step, index) => {
+          const item = document.createElement("li");
+          item.textContent = (index < completed ? "✓ " : index === completed ? "En cours : " : "À venir : ") + step;
+          progressSteps.appendChild(item);
+        });
+      }
+      update(0);
+      progressTimer = setTimeout(() => {
+        if (id === progressId) progressLabel.textContent = "Veuillez patienter, opération en cours…";
+      }, 1000);
+      return {
+        update,
+        end(success) {
+          if (id !== progressId) return;
+          clearTimeout(progressTimer);
+          if (success) update(steps.length);
+          progressLabel.textContent = success ? "Opération terminée." : "Opération interrompue ; consultez le message.";
+        }
+      };
+    }
+
+    function renderContacts(id, label, contacts, fallback) {
+      const target = document.getElementById(id);
+      target.textContent = label + " : ";
+      if (!contacts || !contacts.length) {
+        target.textContent += fallback || "";
+        return;
+      }
+      contacts.forEach((contact, index) => {
+        if (index) target.appendChild(document.createTextNode("; "));
+        const address = contact.address || "";
+        const name = contact.name || address || "Participant inconnu";
+        if (/^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(address)) {
+          const anchor = document.createElement("a");
+          anchor.href = "mailto:" + encodeURIComponent(address);
+          anchor.textContent = name + " <" + address + ">";
+          target.appendChild(anchor);
+        } else {
+          target.appendChild(document.createTextNode(name + " (adresse indisponible)"));
+        }
+      });
+    }
+
+    async function request(route, data, binary = false, fileName = archive.value) {
+      const response = await fetch(route, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileName, ...data })
+      });
+      if (!response.ok) {
+        const contentType = response.headers && response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const error = await response.json();
+          throw new Error(error.error || "Erreur de l'agent : HTTP " + response.status);
+        }
+        throw new Error("Erreur HTTP " + response.status + ". Ouvrez le visualiseur depuis http://127.0.0.1:45731/view et vérifiez que l'agent est démarré.");
+      }
+      if (binary) return response.blob();
+      const result = await response.json();
+      if (result.ok !== true) throw new Error(result.error || "Réponse inattendue de l'agent.");
+      return result;
+    }
+
+    function link(text, action) {
+      const item = document.createElement("li");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "link";
+      button.textContent = text;
+      button.addEventListener("click", action);
+      item.appendChild(button);
+      return item;
+    }
+
+    function clearReading() {
+      detail.hidden = true;
+      placeholder.hidden = false;
+      selectedMessage = null;
+    }
+
+    function formatDate(value) {
+      if (!value) return "";
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? value : date.toLocaleString("fr-FR", {
+        day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"
+      });
+    }
+
+    function folderButton(name, count, action, className, depth) {
+      const item = document.createElement("li");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = className;
+      button.style.paddingLeft = (14 + Math.min(depth, 5) * 12) + "px";
+      button.textContent = name;
+      if (count !== null) {
+        const number = document.createElement("span");
+        number.className = "folder-count";
+        number.textContent = String(count);
+        button.appendChild(number);
+      }
+      button.addEventListener("click", action);
+      item.appendChild(button);
+      return item;
+    }
+
+    async function showFolder(folderId, pageOffset, targetPath = path) {
+      const current = ++requestId;
+      const progress = beginProgress(["Demander le dossier à l'agent", "Afficher les dossiers et messages"]);
+      status.textContent = "Chargement du dossier…";
+      folderPath.textContent = "";
+      folders.textContent = "";
+      messages.textContent = "";
+      document.getElementById("folder-name").textContent = "Messages";
+      clearReading();
+      back.disabled = true;
+      previous.disabled = true;
+      next.disabled = true;
+      document.getElementById("page-info").textContent = "";
+      try {
+        const data = await request("/folder", { folderId, offset: pageOffset });
+        if (current !== requestId) return;
+        progress.update(1);
+        offset = data.offset;
+        nextOffset = data.nextOffset;
+        path = targetPath.length ? targetPath : [{ id: data.folder.id, name: data.folder.name }];
+        document.getElementById("folder-name").textContent = data.folder.name;
+        back.disabled = path.length <= 1;
+        path.forEach((folder, index) => {
+          folderPath.appendChild(folderButton(folder.name, null, () => {
+            showFolder(folder.id, 0, path.slice(0, index + 1));
+          }, "path-button" + (index === path.length - 1 ? " current" : ""), index));
+        });
+        data.folders.forEach((folder) => {
+          folders.appendChild(folderButton(folder.name, folder.count, () => {
+            showFolder(folder.id, 0, [...path, { id: folder.id, name: folder.name }]);
+          }, "folder-button", path.length));
+        });
+        if (!data.folders.length) {
+          const empty = document.createElement("li");
+          empty.className = "empty";
+          empty.textContent = "Aucun sous-dossier.";
+          folders.appendChild(empty);
+        }
+        data.messages.forEach((message) => {
+          const item = document.createElement("li");
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "message-button";
+          [["message-sender", message.sender || "Expéditeur inconnu"], ["message-subject", message.subject || "(Sans objet)"], ["message-date", formatDate(message.date)]].forEach(([className, text]) => {
+            const line = document.createElement("span");
+            line.className = className;
+            line.textContent = text;
+            button.appendChild(line);
+          });
+          button.addEventListener("click", () => showMessage(message.id, button));
+          item.appendChild(button);
+          messages.appendChild(item);
+        });
+        if (!data.messages.length) {
+          const empty = document.createElement("li");
+          empty.className = "empty";
+          empty.textContent = "Aucun message dans cette page.";
+          messages.appendChild(empty);
+        }
+        previous.disabled = offset === 0;
+        next.disabled = nextOffset === null;
+        document.getElementById("page-info").textContent =
+          data.totalItems ? "Éléments " + (offset + 1) + " à " + Math.min(offset + 50, data.totalItems) + " sur " + data.totalItems : "Dossier vide.";
+        status.textContent = "";
+        progress.end(true);
+      } catch (error) {
+        if (current !== requestId) return;
+        progress.end(false);
+        status.textContent = "Impossible d'afficher ce dossier : " + error.message;
+      }
+    }
+
+    async function showMessage(itemId, button) {
+      const current = ++requestId;
+      const progress = beginProgress(["Demander le message à l'agent", "Afficher le message et ses pièces jointes"]);
+      messages.querySelectorAll(".message-button").forEach((item) => {
+        item.classList.remove("selected");
+        item.removeAttribute("aria-current");
+      });
+      button.classList.add("selected");
+      button.setAttribute("aria-current", "true");
+      clearReading();
+      status.textContent = "Chargement du message…";
+      try {
+        const message = await request("/message", { itemId });
+        if (current !== requestId) return;
+        selectedMessage = message;
+        progress.update(1);
+        document.getElementById("subject").textContent = message.subject || "(Sans objet)";
+        renderContacts("from", "De", message.senderContact ? [message.senderContact] : [], message.sender);
+        renderContacts("to", "À", (message.recipients || []).filter((entry) => entry.type === 1).map((entry) => entry.contact), message.to);
+        renderContacts("cc", "Cc", (message.recipients || []).filter((entry) => entry.type === 2).map((entry) => entry.contact), message.cc);
+        document.getElementById("date").textContent = "Date : " + formatDate(message.date);
+        document.getElementById("body").textContent = message.body;
+        const attachmentList = document.getElementById("attachment-list");
+        attachmentList.textContent = "";
+        message.attachments.forEach((attachment) => {
+          attachmentList.appendChild(link(attachment.name + " (" + attachment.size + " octets)", () => downloadAttachment(itemId, attachment)));
+        });
+        if (!message.attachments.length) attachmentList.textContent = "Aucune pièce jointe.";
+        detail.hidden = false;
+        placeholder.hidden = true;
+        status.textContent = "";
+        progress.end(true);
+      } catch (error) {
+        if (current !== requestId) return;
+        progress.end(false);
+        button.classList.remove("selected");
+        button.removeAttribute("aria-current");
+        status.textContent = "Impossible d'afficher ce message : " + error.message;
+      }
+    }
+
+    async function downloadAttachment(itemId, attachment) {
+      const progress = beginProgress(["Demander la pièce jointe à l'agent", "Transmettre au navigateur"]);
+      status.textContent = "Préparation de la pièce jointe…";
+      try {
+        const blob = await request("/attachment", { itemId, index: attachment.index }, true);
+        progress.update(1);
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = attachment.name.replace(/[\\/:*?"<>|\x00-\x1f]/g, "_") || "piece-jointe";
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        status.textContent = "Téléchargement demandé au navigateur.";
+        progress.end(true);
+      } catch (error) {
+        progress.end(false);
+        status.textContent = "Impossible de télécharger la pièce jointe : " + error.message;
+      }
+    }
+
+    function prepareDraft(kind) {
+      if (!selectedMessage) return;
+      if (draftPrepared && !window.confirm("Remplacer le brouillon préparé dans le visualiseur ? Les modifications non copiées seront perdues.")) return;
+      const message = selectedMessage;
+      const addressPattern = /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+      const to = [];
+      const cc = [];
+      let missing = false;
+      function add(target, contact) {
+        const address = contact && contact.address;
+        if (!address || !addressPattern.test(address)) { missing = true; return; }
+        if (![...to, ...cc].some((value) => value.toLowerCase() === address.toLowerCase())) target.push(address);
+      }
+      if (kind !== "forward") add(to, message.senderContact);
+      if (kind === "reply-all") {
+        for (const recipient of message.recipients || []) add(recipient.type === 2 ? cc : to, recipient.contact);
+      }
+      const prefix = kind === "forward" ? "TR: " : "RE: ";
+      const original = [
+        "----- Message d'origine -----",
+        "De : " + (message.sender || ""),
+        "À : " + (message.to || ""),
+        "Cc : " + (message.cc || ""),
+        "Date : " + formatDate(message.date),
+        "Objet : " + (message.subject || ""),
+        "",
+        message.body || ""
+      ].join("\n");
+      document.getElementById("compose-to").value = to.join("; ");
+      document.getElementById("compose-cc").value = cc.join("; ");
+      document.getElementById("compose-bcc").value = "";
+      document.getElementById("compose-subject").value = prefix + (message.subject || "");
+      document.getElementById("compose-body").value = "\n\n" + original;
+      document.getElementById("compose-warning").textContent = missing
+        ? "Certaines adresses sont indisponibles : complétez-les avant l'envoi."
+        : "Vérifiez les adresses avant l'envoi. Les destinataires Cci d'origine ne sont pas disponibles.";
+      document.getElementById("compose").hidden = false;
+      draftPrepared = true;
+    }
+    document.getElementById("reply").addEventListener("click", () => prepareDraft("reply"));
+    document.getElementById("reply-all").addEventListener("click", () => prepareDraft("reply-all"));
+    document.getElementById("forward").addEventListener("click", () => prepareDraft("forward"));
+    document.getElementById("compose-hide").addEventListener("click", () => {
+      document.getElementById("compose").hidden = true;
+    });
+    document.getElementById("open-compose").addEventListener("click", (event) => {
+      const url = new URL("https://outlook.office.com/mail/deeplink/compose");
+      for (const [parameter, id] of [
+        ["to", "compose-to"], ["cc", "compose-cc"], ["bcc", "compose-bcc"],
+        ["subject", "compose-subject"], ["body", "compose-body"]
+      ]) {
+        const value = document.getElementById(id).value;
+        if (value) url.searchParams.set(parameter, value);
+      }
+      if (url.href.length > 2000) {
+        event.preventDefault();
+        document.getElementById("compose-warning").textContent =
+          "Le message est trop long pour un lien fiable. Ouvrez Outlook Web sans préremplissage et copiez les champs manuellement.";
+        return;
+      }
+      event.currentTarget.href = url.href;
+    });
+    document.getElementById("close-viewer").addEventListener("click", () => {
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: "close-local-viewer" }, "https://dellasiegaps.github.io");
+        status.textContent = "Demande de fermeture envoyée. Si le visualiseur reste ouvert, utilisez « Masquer le visualiseur » dans la fenêtre Mes Archives.";
+      } else {
+        window.close();
+        status.textContent = "Si l'onglet reste ouvert, fermez-le avec la croix du navigateur.";
+      }
+    });
+
+    function openArchive() {
+      showFolder("", 0, []);
+    }
+    async function searchArchives(query) {
+      const current = ++requestId;
+      const submit = document.getElementById("search-submit");
+      const cancel = document.getElementById("search-cancel");
+      const progress = beginProgress(["Parcourir les archives montées", "Afficher les résultats"]);
+      searchActive = true;
+      submit.disabled = true;
+      cancel.disabled = false;
+      clearReading();
+      folders.textContent = "";
+      folderPath.textContent = "";
+      messages.textContent = "";
+      back.disabled = true;
+      previous.disabled = true;
+      next.disabled = true;
+      document.getElementById("page-info").textContent = "";
+      document.getElementById("folder-name").textContent = "Résultats de recherche";
+      const normalize = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase();
+      const needle = normalize(query);
+      let found = 0;
+      let mounted = 0;
+      const excluded = [];
+      try {
+        for (const option of archive.options) {
+          if (current !== requestId) return;
+          const fileName = option.value;
+          const state = await request("/state", {}, false, fileName);
+          if (current !== requestId) return;
+          if (!state.outlookRunning) throw new Error("Outlook classique n'est pas ouvert.");
+          if (!state.mounted) {
+            excluded.push(option.textContent);
+            continue;
+          }
+          mounted++;
+          const pending = [{ id: "", name: option.textContent }];
+          while (pending.length) {
+            const folder = pending.pop();
+            let pageOffset = 0;
+            do {
+              if (current !== requestId) return;
+              status.textContent = "Recherche : " + fileName + " — " + folder.name + " (" + found + " résultat(s))";
+              const page = await request("/folder", { folderId: folder.id, offset: pageOffset }, false, fileName);
+              if (current !== requestId) return;
+              if (pageOffset === 0) {
+                for (const child of page.folders) pending.push({ id: child.id, name: folder.name + " / " + child.name });
+              }
+              for (const message of page.messages) {
+                if (current !== requestId) return;
+                let match = [message.subject, message.sender, message.date, formatDate(message.date)]
+                  .some((value) => normalize(value).includes(needle));
+                if (!match) {
+                  const detail = await request("/message", { itemId: message.id }, false, fileName);
+                  if (current !== requestId) return;
+                  const contacts = [detail.senderContact, ...(detail.recipients || []).map((entry) => entry.contact)];
+                  const values = [
+                    detail.subject, detail.sender, detail.to, detail.cc, detail.bcc, detail.date,
+                    formatDate(detail.date), detail.body,
+                    ...contacts.flatMap((contact) => contact ? [contact.name, contact.address] : []),
+                    ...(detail.attachments || []).map((attachment) => attachment.name)
+                  ];
+                  match = values.some((value) => normalize(value).includes(needle));
+                }
+                if (!match) continue;
+                found++;
+                const item = document.createElement("li");
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "message-button";
+                [["message-sender", message.sender || "Expéditeur inconnu"], ["message-subject", message.subject || "(Sans objet)"], ["message-date", folder.name + " — " + formatDate(message.date)]].forEach(([className, text]) => {
+                  const line = document.createElement("span");
+                  line.className = className;
+                  line.textContent = text;
+                  button.appendChild(line);
+                });
+                button.addEventListener("click", () => {
+                  if (searchActive) {
+                    status.textContent = "Attendez la fin de la recherche ou arrêtez-la avant d'ouvrir un résultat.";
+                    return;
+                  }
+                  archive.value = fileName;
+                  showMessage(message.id, button);
+                });
+                item.appendChild(button);
+                messages.appendChild(item);
+              }
+              pageOffset = page.nextOffset;
+            } while (pageOffset !== null);
+          }
+        }
+        if (current !== requestId) return;
+        progress.update(1);
+        status.textContent = mounted
+          ? found + " résultat(s) dans " + mounted + " archive(s) montée(s)." +
+            (excluded.length ? " Archives non recherchées car non montées : " + excluded.join(", ") + "." : "")
+          : "Aucune archive montée : chargez une archive avant de rechercher.";
+        progress.end(true);
+      } catch (error) {
+        if (current !== requestId) return;
+        status.textContent = "Recherche interrompue ; les résultats affichés peuvent être incomplets : " + error.message;
+        progress.end(false);
+      } finally {
+        searchActive = false;
+        submit.disabled = false;
+        cancel.disabled = true;
+      }
+    }
+    document.getElementById("search-form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const query = document.getElementById("search-query").value.trim();
+      if (!query) {
+        status.textContent = "Saisissez un texte à rechercher.";
+        return;
+      }
+      if (!searchActive) searchArchives(query);
+    });
+    document.getElementById("search-cancel").addEventListener("click", () => {
+      if (!searchActive) return;
+      requestId++;
+      progressId++;
+      clearTimeout(progressTimer);
+      progressEl.hidden = true;
+      status.textContent = "Recherche arrêtée ; les résultats affichés sont incomplets.";
+    });
+    document.getElementById("open").addEventListener("click", openArchive);
+    archive.addEventListener("change", openArchive);
+    back.addEventListener("click", () => {
+      if (path.length > 1) {
+        const parentPath = path.slice(0, -1);
+        showFolder(parentPath[parentPath.length - 1].id, 0, parentPath);
+      }
+    });
+    previous.addEventListener("click", () => showFolder(path[path.length - 1].id, Math.max(0, offset - 50)));
+    next.addEventListener("click", () => { if (nextOffset !== null) showFolder(path[path.length - 1].id, nextOffset); });
+    const requestedFile = new URLSearchParams(location.search).get("fileName");
+    if ([...archive.options].some((option) => option.value === requestedFile)) {
+      archive.value = requestedFile;
+      openArchive();
+    }
+  </script>
+</body>
+</html>
