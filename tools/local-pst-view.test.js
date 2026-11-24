@@ -41,7 +41,7 @@ function createViewer(fetch) {
 }
 
 function jsonResponse(data, status = 200) {
-  return { ok: status < 400, status, json: async () => data };
+  return { ok: status < 400, status, headers: { get: () => "application/json" }, json: async () => data };
 }
 
 test("affiche les dossiers, les messages et le détail ensemble et conserve la pagination", async () => {
@@ -136,6 +136,36 @@ test("signale une recherche incomplète lorsque l'agent échoue", async () => {
   viewer.elements.get("archive").options = [{ value: "first.pst", textContent: "2021" }];
   await viewer.run('searchArchives("test")');
   assert.match(viewer.elements.get("status").textContent, /incomplets.*Agent indisponible/);
+});
+
+test("recherche dans les destinataires, adresses, dates et noms de pièces jointes sans sensibilité aux accents", async () => {
+  const viewer = createViewer(async (route) => {
+    if (route === "/state") return jsonResponse({ ok: true, mounted: true, outlookRunning: true });
+    if (route === "/folder") return jsonResponse({
+      ok: true, folder: { id: "root", name: "Racine" }, folders: [],
+      messages: [{ id: "mail", subject: "Objet", sender: "Alice", date: "2026-01-02T03:04:05" }],
+      offset: 0, nextOffset: null, totalItems: 1
+    });
+    return jsonResponse({
+      ok: true, subject: "Objet", sender: "Alice", to: "Destinataire", cc: "Copie", bcc: "Secret",
+      date: "2026-01-02T03:04:05", body: "Contenu", senderContact: { name: "Alice", address: "alice@example.test" },
+      recipients: [{ type: 1, contact: { name: "Destinataire", address: "bob@example.test" } }],
+      attachments: [{ name: "RÉSUMÉ.pdf" }]
+    });
+  });
+  viewer.elements.get("archive").options = [{ value: "first.pst", textContent: "2021" }];
+  for (const query of ["destinataire", "copie", "secret", "alice@example.test", "bob@example.test", "resume.pdf", "02/01/2026", "contenu"]) {
+    await viewer.run(`searchArchives(${JSON.stringify(query)})`);
+    assert.equal(viewer.elements.get("messages").children.length, 1, query);
+  }
+});
+
+test("explique les erreurs non JSON au lieu d'afficher une erreur de parsing", async () => {
+  const viewer = createViewer(async () => ({
+    ok: false, status: 403, headers: { get: () => "text/plain" }
+  }));
+  await viewer.run('showFolder("", 0, [])');
+  assert.match(viewer.elements.get("status").textContent, /HTTP 403.*127\.0\.0\.1/);
 });
 
 test("arrête la recherche après la requête en cours", async () => {

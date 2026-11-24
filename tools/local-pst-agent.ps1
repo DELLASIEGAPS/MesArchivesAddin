@@ -315,7 +315,7 @@ function Get-ArchiveMessage($archive, [string]$itemId) {
   }
   return @{
     ok = $true; subject = [string]$item.Subject; sender = [string]$item.SenderName
-    to = [string]$item.To; cc = [string]$item.CC
+    to = [string]$item.To; cc = [string]$item.CC; bcc = [string]$item.BCC
     senderContact = $senderAddress; recipients = $recipients
     date = ([datetime]$item.ReceivedTime).ToString("s")
     body = [string]$item.Body; attachments = $attachments
