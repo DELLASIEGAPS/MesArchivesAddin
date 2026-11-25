@@ -1,0 +1,5 @@
+exclude:
+  - node_modules
+  - nodes_modules
+  - Mes_Archives2/node_modules
+  - "**/node_modules"
