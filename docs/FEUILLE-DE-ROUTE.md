@@ -29,7 +29,7 @@ Le popup reprend les quatre années, leur état (Indisponible / Disponible) et l
 | Interface | 1 bouton de ruban + popup (`displayDialogAsync`) | Le ruban Outlook ne garantit pas l'affichage/masquage dynamique des boutons |
 | Montage du PST | Agent local sur `127.0.0.1:45731` (COM Outlook, `AddStoreEx` / `RemoveStore`) | Seul un processus local peut monter un PST dans Outlook de bureau |
 | Emplacement des PST | Source OneDrive synchronisée ; copie locale dans `%LOCALAPPDATA%\MesArchives\PST` | Outlook ouvre la copie, pas l'original synchronisé |
-| État côté web (OWA) | Flux Power Automate HTTP, lu via `webStatusEndpoint` | Pas de clé ni de secret dans le complément |
+| Actions côté web (OWA) | Flux Power Automate HTTP : lecture / mise à jour d'un marqueur via `webStatusEndpoint` | Indépendant d'Outlook classique ; le marqueur ne monte pas le PST dans Outlook Web |
 | Icônes | Icônes rouge / vert existantes | Pas de nouveau visuel à produire |
 
 ## Déjà réalisé (dans `main`)
@@ -99,7 +99,8 @@ Windows avant présentation; le code n'a pas été validé avec Outlook réel ic
 - [ ] Flux HTTP : GET `?year=YYYY` renvoie `fileExists` / `mounted`, POST met à jour l'état
 - [ ] Renseigner `webStatusEndpoint` dans `src/archives-config.js`
 - [ ] Prompt prêt à l'emploi : `docs/POWER-AUTOMATE-PROMPT.md`
-- [ ] Limite connue : Power Automate cloud ne monte pas un PST dans Outlook de bureau (il faudrait Power Automate Desktop)
+- [x] Séparer les actions : marqueur cloud sur le web, montage/démontage réel via agent local dans Outlook classique
+- [ ] Limite connue : le marqueur web n'est pas un montage PST et ne donne pas accès aux messages
 
 ### Étape 6 : Recette et démo
 - [ ] Scénario : indisponible, clic, montage, disponible, vérification dans le volet de dossiers, démontage
