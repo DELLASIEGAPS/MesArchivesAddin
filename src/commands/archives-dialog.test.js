@@ -3,14 +3,20 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
+const ARCHIVE_YEARS = ["2021", "2022", "2023", "2024"];
 
-function createDialog(fetch, config = {}) {
+function createDialog(fetch, config = {}, platform = "PC") {
   const elements = new Map();
   function element() {
+    let textContent = "";
     return {
       children: [],
       listeners: {},
-      textContent: "",
+      get textContent() { return textContent; },
+      set textContent(value) {
+        textContent = value;
+        if (value === "") this.children = [];
+      },
       append(...children) { this.children.push(...children); },
       appendChild(child) { this.children.push(child); },
       addEventListener(name, callback) { this.listeners[name] = callback; },
@@ -34,7 +40,7 @@ function createDialog(fetch, config = {}) {
   const messages = [];
   const Office = {
     context: {
-      platform: "PC",
+      platform,
       ui: { messageParent(message) { messages.push(JSON.parse(message)); } },
     },
     PlatformType: { OfficeOnline: "web" },
@@ -59,6 +65,9 @@ function createDialog(fetch, config = {}) {
     viewerFrame: () => elements.get("viewer-frame"),
     progressLabel: () => elements.get("progress-label").textContent,
     progressBar: () => elements.get("progress-bar"),
+    buttonText: (year) => elements.get("list").children[ARCHIVE_YEARS.indexOf(year)]?.children[4]?.textContent,
+    detailText: (year) => elements.get("list").children[ARCHIVE_YEARS.indexOf(year)]?.children[3]?.textContent,
+    modeHint: () => elements.get("mode-hint").textContent,
     close: () => elements.get("close").click(),
     messages,
     document,
@@ -138,10 +147,54 @@ test("affiche patienter après une seconde et termine la progression par étapes
   assert.equal(dialog.progressBar().value, 4);
 });
 
-test("utilise l’agent local par défaut pour les deux modes d’affichage", () => {
+test("configure le visualiseur local par défaut sans rendre le bouton dépendant d’un agent", () => {
   const dialog = createDialog(async () => {});
   assert.equal(dialog.viewer().href, "http://127.0.0.1:45731/view");
   assert.equal(dialog.viewerToggle().disabled, undefined);
+});
+
+test("le mode web lit et modifie uniquement le marqueur cloud sans appeler l’agent Outlook local", async () => {
+  let mounted = false;
+  const calls = [];
+  const dialog = createDialog(async (url, options = {}) => {
+    const parsedUrl = new URL(url);
+    calls.push({ url: parsedUrl, options });
+    if (options.method === "POST") {
+      const body = JSON.parse(options.body);
+      assert.equal(body.annee, "2024");
+      mounted = body.Monte;
+      return response({ ok: true });
+    }
+    return response({ fileExists: true, mounted });
+  }, { webStatusEndpoint: "https://flow.example/trigger?sig=test" }, "web");
+
+  await dialog.start();
+  assert.equal(calls.length, 4);
+  assert.ok(calls.every(({ url }) => url.origin === "https://flow.example"));
+  assert.equal(calls.find(({ url }) => url.searchParams.get("year") === "2024").url.searchParams.get("sig"), "test");
+  assert.match(dialog.modeHint(), /le PST n'est pas monté dans Outlook Web/);
+  assert.match(dialog.buttonText("2024"), /Activer côté web/);
+  assert.match(dialog.detailText("2024"), /marqueur web inactif/);
+
+  calls.length = 0;
+  await dialog.toggle("2024");
+  assert.deepEqual(calls.map(({ options }) => options.method || "GET"), ["GET", "POST", "GET"]);
+  assert.equal(calls[1].options.headers["Content-Type"], "text/plain;charset=UTF-8");
+  assert.equal(dialog.state("2024"), true);
+  assert.match(dialog.detailText("2024"), /n'est pas monté dans Outlook Web/);
+  assert.match(dialog.buttonText("2024"), /Retirer le marqueur web/);
+});
+
+test("un flux cloud web non configuré affiche sa propre erreur sans contacter Outlook classique", async () => {
+  let calls = 0;
+  const dialog = createDialog(async () => {
+    calls++;
+    throw new Error("L'agent local ne doit pas être appelé en mode web.");
+  }, {}, "web");
+  await dialog.start();
+  assert.equal(calls, 0);
+  assert.match(dialog.message(), /configurez le flux cloud de statut/);
+  assert.equal(dialog.state("2021"), undefined);
 });
 
 function response(data, status = 200) {

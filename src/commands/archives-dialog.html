@@ -48,7 +48,7 @@
 <body>
   <header>
   <h2>Mes Archives</h2>
-  <div class="sub">Rouge = indisponible (PST non monté) · Vert = disponible (PST monté dans Outlook)</div>
+  <div id="mode-hint" class="sub"></div>
   <div id="list"></div>
   </header>
   <div id="msg"></div>
@@ -74,6 +74,7 @@
     const PST_AGENT = "http://127.0.0.1:45731";
     const CONFIG = window.MES_ARCHIVES_CONFIG || {};
     const ARCHIVES = { "2021": "ADR_2021.pst", "2022": "ADR_2022.pst", "2023": "ADR_2023.pst", "2024": "ADR.pst" };
+    const isWeb = () => Office.context.platform === Office.PlatformType.OfficeOnline;
     // Nom affiché dans le volet de dossiers d'Outlook.
     const DISPLAY_NAMES = { "2021": "Archives 2021", "2022": "Archives 2022", "2023": "Archives 2023", "2024": "Archives 2024" };
     const states = {};
@@ -92,6 +93,7 @@
     const progressLabel = document.getElementById("progress-label");
     const progressBar = document.getElementById("progress-bar");
     const progressSteps = document.getElementById("progress-steps");
+    const modeHint = document.getElementById("mode-hint");
     let progressTimer;
     let operationSteps = [];
     let completedSteps = 0;
@@ -138,9 +140,10 @@
       }
     });
 
-    const isWeb = () => Office.context.platform === Office.PlatformType.OfficeOnline;
-
     function render() {
+      modeHint.textContent = isWeb()
+        ? "Mode web : vert = marqueur cloud actif ; le PST n'est pas monté dans Outlook Web."
+        : "Mode Outlook classique : vert = PST monté dans Outlook.";
       listEl.textContent = "";
       Object.keys(ARCHIVES).forEach((year) => {
         const on = states[year] === true;
@@ -162,7 +165,9 @@
         const btn = document.createElement("button");
         btn.type = "button";
         btn.disabled = unknown || Object.values(busy).some(Boolean) || refreshing;
-        btn.textContent = on ? "Décharger" : "Charger";
+        btn.textContent = isWeb()
+          ? (on ? "Retirer le marqueur web" : "Activer côté web")
+          : (on ? "Décharger" : "Charger");
         btn.addEventListener("click", () => toggle(year));
         tile.append(img, y, s, d, btn);
         listEl.appendChild(tile);
@@ -197,10 +202,49 @@
       return state;
     }
 
-    // Seul l'agent local est interrogé : aucune donnée ne transite par Azure ni M365.
-    const readState = agentState;
+    function webStatusUrl(year) {
+      if (!CONFIG.webStatusEndpoint) {
+        throw new Error("Flux de statut cloud non configuré (webStatusEndpoint).");
+      }
+      const url = new URL(CONFIG.webStatusEndpoint);
+      url.searchParams.set("year", year);
+      return url.toString();
+    }
+
+    async function webState(year) {
+      const resp = await fetch(webStatusUrl(year), {
+        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(60000)
+      });
+      const data = await resp.json();
+      if (!resp.ok || data.ok === false) throw new Error(data.error || "Flux de statut cloud : HTTP " + resp.status);
+      if (typeof data.fileExists !== "boolean" || typeof data.mounted !== "boolean") {
+        throw new Error("État invalide renvoyé par le flux cloud.");
+      }
+      return { exists: data.fileExists, mounted: data.mounted, local: null, cloud: data.fileExists };
+    }
+
+    async function setWebMarker(year, mounted) {
+      const url = new URL(CONFIG.webStatusEndpoint);
+      const resp = await fetch(url.toString(), {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=UTF-8", Accept: "application/json" },
+        body: JSON.stringify({ annee: year, Monte: mounted }),
+        signal: AbortSignal.timeout(60000)
+      });
+      const data = await resp.json();
+      if (!resp.ok || data.ok !== true) throw new Error(data.error || "Mise à jour du marqueur cloud impossible (HTTP " + resp.status + ").");
+    }
+
+    const readState = (year) => isWeb() ? webState(year) : agentState(year);
 
     function presenceDetail(state) {
+      if (isWeb()) {
+        if (!state.exists) return "PST absent de OneDrive ; aucun marqueur web.";
+        return state.mounted
+          ? "Marqueur web actif ; le PST n'est pas monté dans Outlook Web."
+          : "PST présent dans OneDrive ; marqueur web inactif.";
+      }
       const text = presenceText(state);
       return state.outlookClosed && !state.mounted ? text + " (Outlook fermé)" : text;
     }
@@ -242,7 +286,11 @@
         updateProgress(completedSteps + 1);
       }
       msgEl.textContent = failed
-        ? "État indisponible : lancez l'agent PST local puis cliquez sur Actualiser."
+        ? (isWeb()
+          ? (lastError.includes("webStatusEndpoint")
+            ? "État web indisponible : configurez le flux cloud de statut."
+            : "État web indisponible : vérifiez le flux Power Automate et son accès réseau.")
+          : "État indisponible : lancez l'agent PST local puis cliquez sur Actualiser.")
         : "";
       refreshing = false;
       endProgress(!failed);
@@ -255,23 +303,34 @@
       const previous = states[year];
       const target = !(states[year] === true);
       busy[year] = true;
-      beginProgress(["Vérifier l'état dans Outlook", target ? "Charger l'archive" : "Décharger l'archive", "Confirmer l'état dans Outlook"]);
+      beginProgress(isWeb()
+        ? ["Vérifier le marqueur cloud", target ? "Activer le marqueur web" : "Retirer le marqueur web", "Confirmer le marqueur cloud"]
+        : ["Vérifier l'état dans Outlook", target ? "Charger l'archive" : "Décharger l'archive", "Confirmer l'état dans Outlook"]);
       msgEl.textContent = "";
-      details[year] = target ? "Chargement en cours…" : "Déchargement en cours…";
+      details[year] = isWeb()
+        ? (target ? "Activation du marqueur web…" : "Retrait du marqueur web…")
+        : (target ? "Chargement en cours…" : "Déchargement en cours…");
       render();
       try {
         const st = await readState(year);
-        if (st.mounted !== previous) throw new Error("L'état a changé dans Outlook. Cliquez sur Actualiser.");
-        if (target && !st.exists) throw new Error(st.cloud === true
-          ? "PST présent uniquement dans le cloud (" + ARCHIVES[year] + ") : attendez la synchronisation OneDrive locale."
-          : "PST introuvable (" + ARCHIVES[year] + ") en local" + (st.cloud === false ? " et dans le cloud" : "") + ", vérifiez OneDrive.");
+        if (st.mounted !== previous) throw new Error(isWeb()
+          ? "Le marqueur cloud a changé. Cliquez sur Actualiser."
+          : "L'état a changé dans Outlook. Cliquez sur Actualiser.");
+        if (target && !st.exists) throw new Error(isWeb()
+          ? "PST introuvable dans OneDrive (" + ARCHIVES[year] + ")."
+          : (st.cloud === true
+            ? "PST présent uniquement dans le cloud (" + ARCHIVES[year] + ") : attendez la synchronisation OneDrive locale."
+            : "PST introuvable (" + ARCHIVES[year] + ") en local" + (st.cloud === false ? " et dans le cloud" : "") + ", vérifiez OneDrive."));
         updateProgress(1);
-        await agent(target ? "/mount-pst" : "/unmount-pst", year);
+        if (isWeb()) await setWebMarker(year, target);
+        else await agent(target ? "/mount-pst" : "/unmount-pst", year);
         updateProgress(2);
         const confirmed = await readState(year);
-        if (confirmed.mounted !== target) throw new Error("L'état dans Outlook ne confirme pas l'opération.");
+        if (confirmed.mounted !== target) throw new Error(isWeb()
+          ? "Le flux cloud ne confirme pas la mise à jour du marqueur."
+          : "L'état dans Outlook ne confirme pas l'opération.");
         states[year] = confirmed.mounted;
-        details[year] = isWeb() ? (target ? "Disponible (Outlook Web)" : "Indisponible") : (target ? "Monté dans Outlook" : "Démonté");
+        details[year] = presenceDetail(confirmed);
         Office.context.ui.messageParent(JSON.stringify({ type: "states", states }));
         endProgress(true);
       } catch (e) {
@@ -279,7 +338,7 @@
         delete states[year];
         details[year] = "État à vérifier";
         const reason = e.name === "TypeError"
-          ? "agent PST local injoignable (127.0.0.1:45731)."
+            ? (isWeb() ? "flux cloud inaccessible." : "agent PST local injoignable (127.0.0.1:45731).")
           : e.message;
         msgEl.textContent = year + " : " + reason + " Cliquez sur Actualiser.";
       }
