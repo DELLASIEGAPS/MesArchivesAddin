@@ -32,7 +32,7 @@
     #msg { min-height: 18px; margin-top: 4px; font-size: 12px; color: #b26a00; }
     .footer { margin-top: 12px; display: flex; justify-content: space-between; }
     .footer button { width: auto; min-width: 80px; padding: 7px 12px; background: #555; }
-    .viewer-options { display: flex; align-items: center; gap: 16px; margin-top: 10px; }
+    .viewer-options { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 10px; }
     .viewer-options button { width: auto; padding: 7px 12px; background: #555; }
     .viewer-link { font-size: 13px; }
     #viewer-panel { margin-top: 8px; flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
@@ -48,7 +48,7 @@
 <body>
   <header>
   <h2>Mes Archives</h2>
-  <div class="sub">Rouge = indisponible (PST non monté) · Vert = disponible (PST monté dans Outlook)</div>
+  <div id="mode-hint" class="sub"></div>
   <div id="list"></div>
   </header>
   <div id="msg"></div>
@@ -58,9 +58,15 @@
     <ol id="progress-steps"></ol>
   </section>
   <div class="viewer-options">
+    <label for="viewer-mode">Visualiseur :</label>
+    <select id="viewer-mode">
+      <option value="standalone">Lecteur PST autonome (expérimental)</option>
+      <option value="classic">Archives montées dans Outlook classique</option>
+    </select>
     <button id="viewer-toggle" type="button" aria-expanded="false">Afficher le visualiseur ici</button>
     <a id="agent-view" class="viewer-link" target="_blank" rel="noopener noreferrer">Ouvrir dans un onglet séparé</a>
   </div>
+  <div id="viewer-mode-hint" class="sub" aria-live="polite"></div>
   <section id="viewer-panel" hidden>
     <p>Si le visualiseur ne s'affiche pas, vérifiez l'agent local ou utilisez l'onglet séparé.</p>
     <iframe id="viewer-frame" title="Visualiseur des archives locales" sandbox="allow-scripts allow-same-origin allow-downloads allow-top-navigation-by-user-activation allow-popups allow-popups-to-escape-sandbox"></iframe>
@@ -72,8 +78,10 @@
   </div>
   <script>
     const PST_AGENT = "http://127.0.0.1:45731";
+    const PST_STANDALONE_VIEW = "http://127.0.0.1:45732/view";
     const CONFIG = window.MES_ARCHIVES_CONFIG || {};
     const ARCHIVES = { "2021": "ADR_2021.pst", "2022": "ADR_2022.pst", "2023": "ADR_2023.pst", "2024": "ADR.pst" };
+    const isWeb = () => Office.context.platform === Office.PlatformType.OfficeOnline;
     // Nom affiché dans le volet de dossiers d'Outlook.
     const DISPLAY_NAMES = { "2021": "Archives 2021", "2022": "Archives 2022", "2023": "Archives 2023", "2024": "Archives 2024" };
     const states = {};
@@ -85,6 +93,8 @@
     const listEl = document.getElementById("list");
     const msgEl = document.getElementById("msg");
     const viewerLink = document.getElementById("agent-view");
+    const viewerMode = document.getElementById("viewer-mode");
+    const viewerModeHint = document.getElementById("viewer-mode-hint");
     const viewerToggle = document.getElementById("viewer-toggle");
     const viewerPanel = document.getElementById("viewer-panel");
     const viewerFrame = document.getElementById("viewer-frame");
@@ -92,9 +102,14 @@
     const progressLabel = document.getElementById("progress-label");
     const progressBar = document.getElementById("progress-bar");
     const progressSteps = document.getElementById("progress-steps");
+    const modeHint = document.getElementById("mode-hint");
     let progressTimer;
     let operationSteps = [];
     let completedSteps = 0;
+    let bridgeReady = false;
+    let bridgeFailed = false;
+    let bridgeSequence = 0;
+    const bridgePending = new Map();
     function beginProgress(steps) {
       clearTimeout(progressTimer);
       operationSteps = steps;
@@ -121,7 +136,22 @@
       progressLabel.textContent = success ? "Opération terminée." : "Opération interrompue ; consultez le message ci-dessous.";
     }
     viewerPanel.hidden = true;
-    viewerLink.href = CONFIG.agentViewUrl || PST_AGENT + "/view";
+    viewerMode.value = "standalone";
+
+    function updateViewerMode() {
+      const standalone = viewerMode.value === "standalone";
+      viewerLink.href = standalone ? PST_STANDALONE_VIEW : CONFIG.agentViewUrl || PST_AGENT + "/view";
+      viewerModeHint.textContent = standalone
+        ? "Lecteur expérimental sans Outlook classique : Charger/Décharger active ou retire l'accès dans le lecteur local, sans modifier le PST."
+        : "Visualiseur des PST montés par l'agent Outlook classique.";
+      bridgeReady = false;
+      bridgeFailed = false;
+      viewerFrame.removeAttribute("src");
+      if (standalone || !viewerPanel.hidden) viewerFrame.src = viewerLink.href;
+      if (officeReady) refreshStates();
+    }
+    viewerMode.addEventListener("change", updateViewerMode);
+    updateViewerMode();
 
     function setViewerExpanded(expanded) {
       viewerPanel.hidden = !expanded;
@@ -131,16 +161,30 @@
     }
     viewerToggle.addEventListener("click", () => setViewerExpanded(viewerPanel.hidden));
     window.addEventListener("message", (event) => {
-      if (event.origin === new URL(viewerLink.href).origin &&
-          event.source === viewerFrame.contentWindow &&
-          event.data && event.data.type === "close-local-viewer") {
+      if (event.origin !== new URL(viewerLink.href).origin || event.source !== viewerFrame.contentWindow || !event.data) return;
+      if (event.data.type === "standalone-ready" && viewerMode.value === "standalone") {
+        bridgeReady = true;
+        bridgeFailed = false;
+      } else if (event.data.type === "standalone-response" && viewerMode.value === "standalone") {
+        const pending = bridgePending.get(event.data.id);
+        if (!pending) return;
+        bridgePending.delete(event.data.id);
+        clearTimeout(pending.timer);
+        if (event.data.error) pending.reject(new Error(event.data.error));
+        else pending.resolve(event.data.result);
+      } else if (event.data.type === "standalone-changed" && viewerMode.value === "standalone" && officeReady) {
+        refreshStates();
+      } else if (event.data.type === "close-local-viewer") {
         setViewerExpanded(false);
       }
     });
 
-    const isWeb = () => Office.context.platform === Office.PlatformType.OfficeOnline;
-
     function render() {
+      modeHint.textContent = viewerMode.value === "standalone"
+        ? "Lecteur local : vert = archive chargée pour la lecture, sans montage dans Outlook."
+        : isWeb()
+        ? "Mode web : vert = marqueur cloud actif ; le PST n'est pas monté dans Outlook Web."
+        : "Mode Outlook classique : vert = PST monté dans Outlook.";
       listEl.textContent = "";
       Object.keys(ARCHIVES).forEach((year) => {
         const on = states[year] === true;
@@ -162,7 +206,11 @@
         const btn = document.createElement("button");
         btn.type = "button";
         btn.disabled = unknown || Object.values(busy).some(Boolean) || refreshing;
-        btn.textContent = on ? "Décharger" : "Charger";
+        btn.textContent = viewerMode.value === "standalone"
+          ? (on ? "Décharger" : "Charger")
+          : isWeb()
+          ? (on ? "Retirer le marqueur web" : "Activer côté web")
+          : (on ? "Décharger" : "Charger");
         btn.addEventListener("click", () => toggle(year));
         tile.append(img, y, s, d, btn);
         listEl.appendChild(tile);
@@ -197,10 +245,85 @@
       return state;
     }
 
-    // Seul l'agent local est interrogé : aucune donnée ne transite par Azure ni M365.
-    const readState = agentState;
+    async function standaloneAgent(route, year) {
+      if (bridgeFailed) throw new Error("Le lecteur local ne répond pas. Vérifiez son lancement et l'affichage intégré.");
+      const deadline = Date.now() + 10000;
+      while (!bridgeReady && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      if (!bridgeReady || !viewerFrame.contentWindow) {
+        bridgeFailed = true;
+        throw new Error("Lecteur local inaccessible ou affichage intégré bloqué. Lancez le lecteur autonome et utilisez l'onglet séparé si nécessaire.");
+      }
+      const id = String(++bridgeSequence);
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          bridgePending.delete(id);
+          bridgeFailed = true;
+          reject(new Error("Le lecteur local ne répond pas. Vérifiez son lancement et l'affichage intégré."));
+        }, route === "/load" ? 600000 : 10000);
+        bridgePending.set(id, { resolve, reject, timer });
+        viewerFrame.contentWindow.postMessage({ type: "standalone-request", id, route, fileName: ARCHIVES[year] }, new URL(PST_STANDALONE_VIEW).origin);
+      });
+    }
+
+    async function standaloneState(year) {
+      const state = await standaloneAgent("/state", year);
+      if (!state || state.ok !== true || state.mode !== "standalone" ||
+          typeof state.available !== "boolean" || typeof state.loaded !== "boolean") {
+        throw new Error("État invalide renvoyé par le lecteur autonome.");
+      }
+      return { exists: state.available, mounted: state.loaded };
+    }
+
+    function webStatusUrl(year) {
+      if (!CONFIG.webStatusEndpoint) {
+        throw new Error("Flux de statut cloud non configuré (webStatusEndpoint).");
+      }
+      const url = new URL(CONFIG.webStatusEndpoint);
+      url.searchParams.set("year", year);
+      return url.toString();
+    }
+
+    async function webState(year) {
+      const resp = await fetch(webStatusUrl(year), {
+        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(60000)
+      });
+      const data = await resp.json();
+      if (!resp.ok || data.ok === false) throw new Error(data.error || "Flux de statut cloud : HTTP " + resp.status);
+      if (typeof data.fileExists !== "boolean" || typeof data.mounted !== "boolean") {
+        throw new Error("État invalide renvoyé par le flux cloud.");
+      }
+      return { exists: data.fileExists, mounted: data.mounted, local: null, cloud: data.fileExists };
+    }
+
+    async function setWebMarker(year, mounted) {
+      const url = new URL(CONFIG.webStatusEndpoint);
+      const resp = await fetch(url.toString(), {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=UTF-8", Accept: "application/json" },
+        body: JSON.stringify({ annee: year, Monte: mounted }),
+        signal: AbortSignal.timeout(60000)
+      });
+      const data = await resp.json();
+      if (!resp.ok || data.ok !== true) throw new Error(data.error || "Mise à jour du marqueur cloud impossible (HTTP " + resp.status + ").");
+    }
+
+    // Sur le web, l'état est un marqueur. Ce n'est pas un PST monté.
+    const readState = (year) => viewerMode.value === "standalone" ? standaloneState(year) : isWeb() ? webState(year) : agentState(year);
 
     function presenceDetail(state) {
+      if (viewerMode.value === "standalone") {
+        if (state.mounted && !state.exists) return "Archive chargée, mais PST indisponible localement ; déchargez-la.";
+        return state.mounted ? "Archive chargée dans le lecteur local." : state.exists ? "PST disponible localement, non chargé." : "PST absent ou indisponible localement.";
+      }
+      if (isWeb()) {
+        if (!state.exists) return "PST absent de OneDrive ; aucun marqueur web.";
+        return state.mounted
+          ? "Marqueur web actif ; le PST n'est pas monté dans Outlook Web."
+          : "PST présent dans OneDrive ; marqueur web inactif.";
+      }
       const text = presenceText(state);
       return state.outlookClosed && !state.mounted ? text + " (Outlook fermé)" : text;
     }
@@ -222,6 +345,7 @@
       }
       refreshPending = false;
       refreshing = true;
+      viewerMode.disabled = true;
       beginProgress(Object.keys(ARCHIVES).map((year) => "Vérifier l'archive " + year));
       msgEl.textContent = "Vérification des archives…";
       render();
@@ -242,9 +366,16 @@
         updateProgress(completedSteps + 1);
       }
       msgEl.textContent = failed
-        ? "État indisponible : lancez l'agent PST local puis cliquez sur Actualiser."
+        ? (viewerMode.value === "standalone"
+          ? "État du lecteur autonome indisponible : " + lastError
+          : isWeb()
+          ? (lastError.includes("webStatusEndpoint")
+            ? "État web indisponible : configurez le flux cloud de statut."
+            : "État web indisponible : vérifiez le flux Power Automate et son accès réseau.")
+          : "État indisponible : lancez l'agent PST local puis cliquez sur Actualiser.")
         : "";
       refreshing = false;
+      viewerMode.disabled = false;
       endProgress(!failed);
       render();
       if (refreshPending) refreshStates();
@@ -255,41 +386,73 @@
       const previous = states[year];
       const target = !(states[year] === true);
       busy[year] = true;
-      beginProgress(["Vérifier l'état dans Outlook", target ? "Charger l'archive" : "Décharger l'archive", "Confirmer l'état dans Outlook"]);
+      viewerMode.disabled = true;
+      const standalone = viewerMode.value === "standalone";
+      beginProgress(standalone
+        ? ["Vérifier l'archive locale", target ? "Charger dans le lecteur" : "Décharger du lecteur", "Confirmer l'état du lecteur"]
+        : isWeb()
+        ? ["Vérifier le marqueur cloud", target ? "Activer le marqueur web" : "Retirer le marqueur web", "Confirmer le marqueur cloud"]
+        : ["Vérifier l'état dans Outlook", target ? "Charger l'archive" : "Décharger l'archive", "Confirmer l'état dans Outlook"]);
       msgEl.textContent = "";
-      details[year] = target ? "Chargement en cours…" : "Déchargement en cours…";
+      details[year] = standalone
+        ? (target ? "Chargement dans le lecteur…" : "Déchargement du lecteur…")
+        : isWeb()
+        ? (target ? "Activation du marqueur web…" : "Retrait du marqueur web…")
+        : (target ? "Chargement en cours…" : "Déchargement en cours…");
       render();
       try {
         const st = await readState(year);
-        if (st.mounted !== previous) throw new Error("L'état a changé dans Outlook. Cliquez sur Actualiser.");
-        if (target && !st.exists) throw new Error(st.cloud === true
-          ? "PST présent uniquement dans le cloud (" + ARCHIVES[year] + ") : attendez la synchronisation OneDrive locale."
-          : "PST introuvable (" + ARCHIVES[year] + ") en local" + (st.cloud === false ? " et dans le cloud" : "") + ", vérifiez OneDrive.");
+        if (st.mounted !== previous) throw new Error(standalone
+          ? "L'état du lecteur a changé. Cliquez sur Actualiser."
+          : isWeb()
+          ? "Le marqueur cloud a changé. Cliquez sur Actualiser."
+          : "L'état a changé dans Outlook. Cliquez sur Actualiser.");
+        if (target && !st.exists) throw new Error(standalone
+          ? "PST introuvable localement (" + ARCHIVES[year] + ")."
+          : isWeb()
+          ? "PST introuvable dans OneDrive (" + ARCHIVES[year] + ")."
+          : (st.cloud === true
+            ? "PST présent uniquement dans le cloud (" + ARCHIVES[year] + ") : attendez la synchronisation OneDrive locale."
+            : "PST introuvable (" + ARCHIVES[year] + ") en local" + (st.cloud === false ? " et dans le cloud" : "") + ", vérifiez OneDrive."));
         updateProgress(1);
-        await agent(target ? "/mount-pst" : "/unmount-pst", year);
+        if (standalone) await standaloneAgent(target ? "/load" : "/unload", year);
+        else if (isWeb()) await setWebMarker(year, target);
+        else await agent(target ? "/mount-pst" : "/unmount-pst", year);
         updateProgress(2);
         const confirmed = await readState(year);
-        if (confirmed.mounted !== target) throw new Error("L'état dans Outlook ne confirme pas l'opération.");
+        if (confirmed.mounted !== target) throw new Error(standalone
+          ? "Le lecteur ne confirme pas l'opération."
+          : isWeb()
+          ? "Le flux cloud ne confirme pas la mise à jour du marqueur."
+          : "L'état dans Outlook ne confirme pas l'opération.");
         states[year] = confirmed.mounted;
-        details[year] = isWeb() ? (target ? "Disponible (Outlook Web)" : "Indisponible") : (target ? "Monté dans Outlook" : "Démonté");
-        Office.context.ui.messageParent(JSON.stringify({ type: "states", states }));
+        details[year] = presenceDetail(confirmed);
+        if (!standalone) Office.context.ui.messageParent(JSON.stringify({ type: "states", states }));
         endProgress(true);
       } catch (e) {
         endProgress(false);
         delete states[year];
         details[year] = "État à vérifier";
         const reason = e.name === "TypeError"
-          ? "agent PST local injoignable (127.0.0.1:45731)."
+            ? (standalone ? "lecteur autonome inaccessible." : isWeb() ? "flux cloud inaccessible." : "agent PST local injoignable (127.0.0.1:45731).")
           : e.message;
         msgEl.textContent = year + " : " + reason + " Cliquez sur Actualiser.";
       }
       busy[year] = false;
+      viewerMode.disabled = false;
       render();
       if (refreshPending) refreshStates();
     }
 
     document.getElementById("modop").addEventListener("click", () => window.open("https://dellasiegaps.github.io/MesArchivesAddin/docs/Fiche%20pratique%20-%20Exchange%20Online.pdf", "_blank", "noopener"));
-    document.getElementById("refresh").addEventListener("click", refreshStates);
+    document.getElementById("refresh").addEventListener("click", () => {
+      if (viewerMode.value === "standalone" && bridgeFailed) {
+        bridgeFailed = false;
+        bridgeReady = false;
+        viewerFrame.src = viewerLink.href;
+      }
+      refreshStates();
+    });
     document.addEventListener("visibilitychange", () => {
       if (officeReady && document.visibilityState === "visible") refreshStates();
     });

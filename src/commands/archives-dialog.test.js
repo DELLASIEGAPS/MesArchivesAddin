@@ -3,14 +3,20 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
+const ARCHIVE_YEARS = ["2021", "2022", "2023", "2024"];
 
-function createDialog(fetch, config = {}) {
+function createDialog(fetch, config = {}, platform = "PC", mode = "classic") {
   const elements = new Map();
   function element() {
+    let textContent = "";
     return {
       children: [],
       listeners: {},
-      textContent: "",
+      get textContent() { return textContent; },
+      set textContent(value) {
+        textContent = value;
+        if (value === "") this.children = [];
+      },
       append(...children) { this.children.push(...children); },
       appendChild(child) { this.children.push(child); },
       addEventListener(name, callback) { this.listeners[name] = callback; },
@@ -34,7 +40,7 @@ function createDialog(fetch, config = {}) {
   const messages = [];
   const Office = {
     context: {
-      platform: "PC",
+      platform,
       ui: { messageParent(message) { messages.push(JSON.parse(message)); } },
     },
     PlatformType: { OfficeOnline: "web" },
@@ -48,6 +54,10 @@ function createDialog(fetch, config = {}) {
     window,
   });
   vm.runInContext(script, context);
+  if (mode === "classic") {
+    elements.get("viewer-mode").value = "classic";
+    elements.get("viewer-mode").listeners.change();
+  }
   return {
     start: () => onReady(),
     toggle: (year) => vm.runInContext(`toggle("${year}")`, context),
@@ -57,8 +67,13 @@ function createDialog(fetch, config = {}) {
     viewerPanel: () => elements.get("viewer-panel"),
     viewerToggle: () => elements.get("viewer-toggle"),
     viewerFrame: () => elements.get("viewer-frame"),
+    viewerMode: () => elements.get("viewer-mode"),
+    viewerModeHint: () => elements.get("viewer-mode-hint").textContent,
     progressLabel: () => elements.get("progress-label").textContent,
     progressBar: () => elements.get("progress-bar"),
+    buttonText: (year) => elements.get("list").children[ARCHIVE_YEARS.indexOf(year)]?.children[4]?.textContent,
+    detailText: (year) => elements.get("list").children[ARCHIVE_YEARS.indexOf(year)]?.children[3]?.textContent,
+    modeHint: () => elements.get("mode-hint").textContent,
     close: () => elements.get("close").click(),
     messages,
     document,
@@ -107,6 +122,27 @@ test("ferme la boîte de dialogue même lorsque le visualiseur est ouvert", () =
   assert.equal(dialog.messages[0].type, "close");
 });
 
+test("choisit explicitement le lecteur autonome et ses actions indépendantes", () => {
+  const dialog = createDialog(async () => {});
+  dialog.viewerToggle().click();
+  dialog.viewerMode().value = "standalone";
+  dialog.viewerMode().listeners.change();
+  assert.equal(dialog.viewer().href, "http://127.0.0.1:45732/view");
+  assert.equal(dialog.viewerFrame().src, "http://127.0.0.1:45732/view");
+  assert.match(dialog.viewerModeHint(), /sans Outlook classique/);
+  assert.match(dialog.viewerModeHint(), /sans modifier le PST/);
+  const frameWindow = {};
+  dialog.viewerFrame().contentWindow = frameWindow;
+  dialog.window.listeners.message({ origin: "http://127.0.0.1:45731", source: frameWindow, data: { type: "close-local-viewer" } });
+  assert.equal(dialog.viewerPanel().hidden, false);
+  dialog.window.listeners.message({ origin: "http://127.0.0.1:45732", source: frameWindow, data: { type: "close-local-viewer" } });
+  assert.equal(dialog.viewerPanel().hidden, true);
+  dialog.viewerMode().value = "classic";
+  dialog.viewerMode().listeners.change();
+  assert.equal(dialog.viewer().href, "http://127.0.0.1:45731/view");
+  assert.equal(dialog.viewerFrame().getAttribute("src"), undefined);
+});
+
 test("masque le visualiseur uniquement à la demande de sa propre fenêtre locale", () => {
   const dialog = createDialog(async () => {});
   const frameWindow = {};
@@ -138,10 +174,125 @@ test("affiche patienter après une seconde et termine la progression par étapes
   assert.equal(dialog.progressBar().value, 4);
 });
 
-test("utilise l’agent local par défaut pour les deux modes d’affichage", () => {
+test("configure le visualiseur local par défaut sans rendre le bouton dépendant d’un agent", () => {
   const dialog = createDialog(async () => {});
   assert.equal(dialog.viewer().href, "http://127.0.0.1:45731/view");
   assert.equal(dialog.viewerToggle().disabled, undefined);
+});
+
+test("sélectionne par défaut le lecteur autonome dans la version de développement", () => {
+  const dialog = createDialog(async () => {}, {}, "web", "standalone");
+  assert.equal(dialog.viewerMode().value, "standalone");
+  assert.equal(dialog.viewer().href, "http://127.0.0.1:45732/view");
+  assert.match(dialog.modeHint(), /sans montage dans Outlook/);
+});
+
+test("le mode web lit et modifie uniquement le marqueur cloud sans appeler l’agent Outlook local", async () => {
+  let mounted = false;
+  const calls = [];
+  const dialog = createDialog(async (url, options = {}) => {
+    const parsedUrl = new URL(url);
+    calls.push({ url: parsedUrl, options });
+    if (options.method === "POST") {
+      const body = JSON.parse(options.body);
+      assert.equal(body.annee, "2024");
+      mounted = body.Monte;
+      return response({ ok: true });
+    }
+    return response({ fileExists: true, mounted });
+  }, { webStatusEndpoint: "https://flow.example/trigger?sig=test" }, "web");
+
+  await dialog.start();
+  assert.equal(calls.length, 4);
+  assert.ok(calls.every(({ url }) => url.origin === "https://flow.example"));
+  assert.equal(calls.find(({ url }) => url.searchParams.get("year") === "2024").url.searchParams.get("sig"), "test");
+  assert.match(dialog.modeHint(), /le PST n'est pas monté dans Outlook Web/);
+  assert.match(dialog.buttonText("2024"), /Activer côté web/);
+  assert.match(dialog.detailText("2024"), /marqueur web inactif/);
+
+  calls.length = 0;
+  await dialog.toggle("2024");
+  assert.deepEqual(calls.map(({ options }) => options.method || "GET"), ["GET", "POST", "GET"]);
+  assert.equal(calls[1].options.headers["Content-Type"], "text/plain;charset=UTF-8");
+  assert.equal(dialog.state("2024"), true);
+  assert.match(dialog.detailText("2024"), /n'est pas monté dans Outlook Web/);
+  assert.match(dialog.buttonText("2024"), /Retirer le marqueur web/);
+});
+
+test("un flux cloud web non configuré affiche sa propre erreur sans contacter Outlook classique", async () => {
+  let calls = 0;
+  const dialog = createDialog(async () => {
+    calls++;
+    throw new Error("L'agent local ne doit pas être appelé en mode web.");
+  }, {}, "web");
+  await dialog.start();
+  assert.equal(calls, 0);
+  assert.match(dialog.message(), /configurez le flux cloud de statut/);
+  assert.equal(dialog.state("2021"), undefined);
+});
+
+test("charge et décharge via le lecteur autonome dans Outlook Web sans agent classique ni flux cloud", async () => {
+  const calls = [];
+  const loaded = new Set();
+  const dialog = createDialog(async () => { throw new Error("Aucun appel direct attendu"); }, {}, "web", "standalone");
+  const frame = {
+    postMessage(message, origin) {
+      assert.equal(origin, "http://127.0.0.1:45732");
+      calls.push(message.route);
+      if (message.route === "/load") loaded.add(message.fileName);
+      if (message.route === "/unload") loaded.delete(message.fileName);
+      const result = message.route === "/state"
+        ? { ok: true, mode: "standalone", available: true, loaded: loaded.has(message.fileName) }
+        : { ok: true, loaded: loaded.has(message.fileName) };
+      dialog.window.listeners.message({
+        origin: "https://example.com", source: frame,
+        data: { type: "standalone-response", id: message.id, error: "Réponse falsifiée" }
+      });
+      queueMicrotask(() => dialog.window.listeners.message({
+        origin, source: frame, data: { type: "standalone-response", id: message.id, result }
+      }));
+    }
+  };
+  dialog.viewerFrame().contentWindow = frame;
+  dialog.window.listeners.message({
+    origin: "http://127.0.0.1:45732", source: frame, data: { type: "standalone-ready" }
+  });
+  await dialog.start();
+  assert.match(dialog.modeHint(), /sans montage dans Outlook/);
+  calls.length = 0;
+  await dialog.toggle("2024");
+  assert.deepEqual(calls, ["/state", "/load", "/state"]);
+  assert.equal(dialog.state("2024"), true);
+  assert.equal(dialog.messages.length, 0);
+  calls.length = 0;
+  await dialog.toggle("2024");
+  assert.deepEqual(calls, ["/state", "/unload", "/state"]);
+  assert.equal(dialog.state("2024"), false);
+});
+
+test("le lecteur autonome ne signale pas un chargement si l'état final ne le confirme pas", async () => {
+  const dialog = createDialog(async () => { throw new Error("Appel direct inattendu"); }, {}, "web", "standalone");
+  const frame = {
+    postMessage(message, origin) {
+      queueMicrotask(() => dialog.window.listeners.message({
+        origin, source: frame, data: {
+          type: "standalone-response", id: message.id,
+          result: message.route === "/state"
+            ? { ok: true, mode: "standalone", available: true, loaded: false }
+            : { ok: true, loaded: true }
+        }
+      }));
+    }
+  };
+  dialog.viewerFrame().contentWindow = frame;
+  dialog.window.listeners.message({
+    origin: "http://127.0.0.1:45732", source: frame, data: { type: "standalone-ready" }
+  });
+  await dialog.start();
+  await dialog.toggle("2024");
+  assert.equal(dialog.state("2024"), undefined);
+  assert.match(dialog.message(), /ne confirme pas/);
+  assert.equal(dialog.messages.length, 0);
 });
 
 function response(data, status = 200) {

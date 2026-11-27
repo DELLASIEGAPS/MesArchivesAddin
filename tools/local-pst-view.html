@@ -80,16 +80,18 @@
       <option value="ADR_2023.pst">2023</option>
       <option value="ADR.pst">2024</option>
     </select>
+    <button id="standalone-load" type="button" hidden>Charger l'archive</button>
+    <button id="standalone-unload" type="button" hidden>Décharger l'archive</button>
     <button id="open" type="button">Afficher</button>
     <button id="back" type="button" disabled>Dossier parent</button>
     <button id="close-viewer" type="button">Fermer le visualiseur</button>
   </div>
-  <form id="search-form" class="search" role="search">
+  <div id="search-form" class="search" role="search">
     <label for="search-query">Rechercher dans toutes les archives montées :</label>
     <input id="search-query" type="search" required placeholder="Objet, participants, date, texte ou pièce jointe">
-    <button id="search-submit" type="submit">Rechercher</button>
+    <button id="search-submit" type="button">Rechercher</button>
     <button id="search-cancel" type="button" disabled>Arrêter</button>
-  </form>
+  </div>
   </header>
   <div id="status" role="status"></div>
   <section id="progress" aria-label="Progression de l'opération" aria-live="polite" hidden>
@@ -106,7 +108,7 @@
     <section class="panel message-panel" aria-label="Liste des messages">
       <div id="message-list">
         <h2 id="folder-name" class="panel-heading">Messages</h2>
-        <p class="meta panel-description">Jusqu’à 50 éléments par page ; seuls les messages sont affichés.</p>
+        <p class="meta panel-description" id="list-description">Jusqu’à 50 éléments par page ; seuls les messages sont affichés.</p>
         <ul id="messages"></ul>
         <div class="pagination">
           <button id="previous" type="button" disabled>Page précédente</button>
@@ -150,6 +152,15 @@
     </section>
   </main>
   <script>
+    const standalone = window.MES_ARCHIVES_STANDALONE || null;
+    if (standalone) {
+      document.querySelector(".header h1").textContent = "Archives locales — lecteur autonome";
+      document.querySelector(".header p").textContent = "Lecture seule sans Outlook classique. Les PST ne sont pas montés dans Outlook.";
+      document.querySelector('label[for="search-query"]').textContent = "Rechercher dans les archives chargées :";
+      document.getElementById("list-description").textContent = "Jusqu'à 50 éléments par page ; les types non pris en charge peuvent apparaître.";
+      document.getElementById("standalone-load").hidden = false;
+      document.getElementById("standalone-unload").hidden = false;
+    }
     const archive = document.getElementById("archive");
     const status = document.getElementById("status");
     const folders = document.getElementById("folders");
@@ -230,7 +241,9 @@
     async function request(route, data, binary = false, fileName = archive.value) {
       const response = await fetch(route, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: standalone
+          ? { "Content-Type": "application/json", "X-MesArchives-Token": standalone.token }
+          : { "Content-Type": "application/json" },
         body: JSON.stringify({ fileName, ...data })
       });
       if (!response.ok) {
@@ -239,12 +252,77 @@
           const error = await response.json();
           throw new Error(error.error || "Erreur de l'agent : HTTP " + response.status);
         }
-        throw new Error("Erreur HTTP " + response.status + ". Ouvrez le visualiseur depuis http://127.0.0.1:45731/view et vérifiez que l'agent est démarré.");
+        throw new Error("Erreur HTTP " + response.status + ". Vérifiez que le lecteur local est démarré.");
       }
       if (binary) return response.blob();
       const result = await response.json();
       if (result.ok !== true) throw new Error(result.error || "Réponse inattendue de l'agent.");
       return result;
+    }
+
+    if (standalone) {
+      const channel = typeof BroadcastChannel === "function" ? new BroadcastChannel("mesarchives-standalone") : null;
+      function clearUnloadedArchive(fileName) {
+        if (archive.value !== fileName) return;
+        requestId++;
+        progressId++;
+        clearTimeout(progressTimer);
+        progressEl.hidden = true;
+        folderPath.textContent = "";
+        folders.textContent = "";
+        messages.textContent = "";
+        document.getElementById("folder-name").textContent = "Messages";
+        document.getElementById("page-info").textContent = "";
+        back.disabled = true;
+        previous.disabled = true;
+        next.disabled = true;
+        clearReading();
+        status.textContent = "Archive déchargée du lecteur.";
+      }
+      function notifyParent() {
+        if (window.parent !== window) window.parent.postMessage({ type: "standalone-changed" }, "https://dellasiegaps.github.io");
+      }
+      if (channel) channel.addEventListener("message", (event) => {
+        if (!event.data || event.data.type !== "changed") return;
+        if (event.data.route === "/unload") clearUnloadedArchive(event.data.fileName);
+        notifyParent();
+      });
+      async function changeArchive(route, fileName) {
+        const result = await request(route, {}, false, fileName);
+        if (route === "/unload") {
+          clearUnloadedArchive(fileName);
+        }
+        if (channel) channel.postMessage({ type: "changed", route, fileName });
+        return result;
+      }
+      for (const [id, route] of [["standalone-load", "/load"], ["standalone-unload", "/unload"]]) {
+        document.getElementById(id).addEventListener("click", async () => {
+          try {
+            await changeArchive(route, archive.value);
+            notifyParent();
+            if (route === "/load") {
+              status.textContent = "Archive chargée dans le lecteur local.";
+              openArchive();
+            }
+          } catch (error) {
+            status.textContent = "Opération impossible : " + error.message;
+          }
+        });
+      }
+      window.addEventListener("message", async (event) => {
+        if (event.origin !== "https://dellasiegaps.github.io" || event.source !== window.parent ||
+            !event.data || event.data.type !== "standalone-request" ||
+            !["/state", "/load", "/unload"].includes(event.data.route) ||
+            typeof event.data.id !== "string" || typeof event.data.fileName !== "string") return;
+        try {
+          const result = event.data.route === "/state"
+            ? await request("/state", {}, false, event.data.fileName)
+            : await changeArchive(event.data.route, event.data.fileName);
+          event.source.postMessage({ type: "standalone-response", id: event.data.id, result }, event.origin);
+        } catch (error) {
+          event.source.postMessage({ type: "standalone-response", id: event.data.id, error: error.message }, event.origin);
+        }
+      });
     }
 
     function link(text, action) {
@@ -387,7 +465,8 @@
         const attachmentList = document.getElementById("attachment-list");
         attachmentList.textContent = "";
         message.attachments.forEach((attachment) => {
-          attachmentList.appendChild(link(attachment.name + " (" + attachment.size + " octets)", () => downloadAttachment(itemId, attachment)));
+          const size = attachment.size === null ? "taille non vérifiée" : attachment.size + " octets";
+          attachmentList.appendChild(link(attachment.name + " (" + size + ")", () => downloadAttachment(itemId, attachment)));
         });
         if (!message.attachments.length) attachmentList.textContent = "Aucune pièce jointe.";
         detail.hidden = false;
@@ -500,11 +579,12 @@
     function openArchive() {
       showFolder("", 0, []);
     }
+    // La recherche parcourt seulement les archives montées.
     async function searchArchives(query) {
       const current = ++requestId;
       const submit = document.getElementById("search-submit");
       const cancel = document.getElementById("search-cancel");
-      const progress = beginProgress(["Parcourir les archives montées", "Afficher les résultats"]);
+      const progress = beginProgress([standalone ? "Parcourir les archives disponibles" : "Parcourir les archives montées", "Afficher les résultats"]);
       searchActive = true;
       submit.disabled = true;
       cancel.disabled = false;
@@ -528,8 +608,8 @@
           const fileName = option.value;
           const state = await request("/state", {}, false, fileName);
           if (current !== requestId) return;
-          if (!state.outlookRunning) throw new Error("Outlook classique n'est pas ouvert.");
-          if (!state.mounted) {
+          if (!standalone && !state.outlookRunning) throw new Error("Outlook classique n'est pas ouvert.");
+          if (standalone ? !state.loaded || !state.available : !state.mounted) {
             excluded.push(option.textContent);
             continue;
           }
@@ -592,9 +672,9 @@
         if (current !== requestId) return;
         progress.update(1);
         status.textContent = mounted
-          ? found + " résultat(s) dans " + mounted + " archive(s) montée(s)." +
-            (excluded.length ? " Archives non recherchées car non montées : " + excluded.join(", ") + "." : "")
-          : "Aucune archive montée : chargez une archive avant de rechercher.";
+          ? found + " résultat(s) dans " + mounted + (standalone ? " archive(s) disponible(s)." : " archive(s) montée(s).") +
+            (excluded.length ? (standalone ? " Archives indisponibles : " : " Archives non recherchées car non montées : ") + excluded.join(", ") + "." : "")
+          : (standalone ? "Aucune archive chargée et disponible : chargez une archive avant de rechercher." : "Aucune archive montée : chargez une archive avant de rechercher.");
         progress.end(true);
       } catch (error) {
         if (current !== requestId) return;
@@ -606,14 +686,20 @@
         cancel.disabled = true;
       }
     }
-    document.getElementById("search-form").addEventListener("submit", (event) => {
-      event.preventDefault();
+    function submitSearch() {
       const query = document.getElementById("search-query").value.trim();
       if (!query) {
         status.textContent = "Saisissez un texte à rechercher.";
         return;
       }
       if (!searchActive) searchArchives(query);
+    }
+    document.getElementById("search-submit").addEventListener("click", submitSearch);
+    document.getElementById("search-query").addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        submitSearch();
+      }
     });
     document.getElementById("search-cancel").addEventListener("click", () => {
       if (!searchActive) return;
@@ -637,6 +723,9 @@
     if ([...archive.options].some((option) => option.value === requestedFile)) {
       archive.value = requestedFile;
       openArchive();
+    }
+    if (standalone && window.parent !== window) {
+      window.parent.postMessage({ type: "standalone-ready" }, "https://dellasiegaps.github.io");
     }
   </script>
 </body>

@@ -4,7 +4,7 @@ const path = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
 
-function createViewer(fetch) {
+function createViewer(fetch, standalone = false) {
   const elements = new Map();
   function element() {
     let text = "";
@@ -24,6 +24,7 @@ function createViewer(fetch) {
     };
   }
   const document = {
+    querySelector: () => element(),
     getElementById(id) {
       if (!elements.has(id)) elements.set(id, element());
       return elements.get(id);
@@ -35,14 +36,57 @@ function createViewer(fetch) {
   document.getElementById("archive").options = [];
   const html = fs.readFileSync(path.join(__dirname, "local-pst-view.html"), "utf8");
   const script = html.match(/<script>\s*([\s\S]*?)<\/script>/)[1];
-  const context = vm.createContext({ document, fetch, URLSearchParams, location: { search: "" }, setTimeout, clearTimeout, URL, window: { confirm: () => true } });
+  const window = { confirm: () => true, listeners: {}, addEventListener(name, callback) { this.listeners[name] = callback; } };
+  window.parent = window;
+  if (standalone) window.MES_ARCHIVES_STANDALONE = { token: "test-token" };
+  const context = vm.createContext({ document, fetch, URLSearchParams, location: { search: "" }, setTimeout, clearTimeout, URL, window });
   vm.runInContext(script, context);
-  return { elements, run: (code) => vm.runInContext(code, context) };
+  return { elements, window, run: (code) => vm.runInContext(code, context) };
 }
 
 function jsonResponse(data, status = 200) {
   return { ok: status < 400, status, headers: { get: () => "application/json" }, json: async () => data };
 }
+
+test("lance la recherche avec le bouton ou Entrée sans soumettre de formulaire", async () => {
+  let requests = 0;
+  const viewer = createViewer(async () => {
+    requests++;
+    return jsonResponse({ ok: true, mounted: false, outlookRunning: true });
+  });
+  viewer.elements.get("archive").options = [{ value: "first.pst", textContent: "2021" }];
+  viewer.elements.get("search-query").value = "Alpha";
+  viewer.elements.get("search-submit").listeners.click();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(requests, 1);
+  let prevented = false;
+  viewer.elements.get("search-query").listeners.keydown({ key: "Enter", preventDefault() { prevented = true; } });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(prevented, true);
+  assert.equal(requests, 2);
+});
+
+test("le relais autonome accepte seulement son parent de confiance et les routes de contrôle", async () => {
+  const calls = [];
+  const sent = [];
+  const viewer = createViewer(async (route, options) => {
+    calls.push({ route, headers: options.headers, body: JSON.parse(options.body) });
+    return jsonResponse({ ok: true, mode: "standalone", available: true, loaded: false });
+  }, true);
+  const parent = { postMessage: (message, origin) => sent.push({ message, origin }) };
+  viewer.window.parent = parent;
+  const handler = viewer.window.listeners.message;
+  const data = { type: "standalone-request", id: "1", route: "/state", fileName: "ADR_2021.pst" };
+  await handler({ origin: "https://example.com", source: parent, data });
+  await handler({ origin: "https://dellasiegaps.github.io", source: {}, data });
+  await handler({ origin: "https://dellasiegaps.github.io", source: parent, data: { ...data, route: "/message" } });
+  assert.equal(calls.length, 0);
+  await handler({ origin: "https://dellasiegaps.github.io", source: parent, data });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].headers["X-MesArchives-Token"], "test-token");
+  assert.equal(sent[0].message.id, "1");
+  assert.equal(sent[0].origin, "https://dellasiegaps.github.io");
+});
 
 test("affiche les dossiers, les messages et le détail ensemble et conserve la pagination", async () => {
   const calls = [];
@@ -165,7 +209,7 @@ test("explique les erreurs non JSON au lieu d'afficher une erreur de parsing", a
     ok: false, status: 403, headers: { get: () => "text/plain" }
   }));
   await viewer.run('showFolder("", 0, [])');
-  assert.match(viewer.elements.get("status").textContent, /HTTP 403.*127\.0\.0\.1/);
+  assert.match(viewer.elements.get("status").textContent, /HTTP 403.*lecteur local/);
 });
 
 test("arrête la recherche après la requête en cours", async () => {
